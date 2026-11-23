@@ -1,7 +1,7 @@
 {
   "name": "@jbrowse/graph-fold",
   "version": "0.0.0",
-  "description": "Fold small variation out of a pangenome graph window, so a sequence tube map shows its structural variants",
+  "description": "Fold the small variation of a pangenome graph window into its reference, so a sequence tube map shows its structural variants",
   "license": "MIT",
   "packageManager": "pnpm@11.15.1",
   "type": "module",
@@ -33,15 +33,18 @@
     "build:esm": "tsc --outDir esm",
     "build:es5": "tsc --module commonjs --moduleResolution bundler --outDir dist",
     "postbuild:es5": "echo '{\"type\": \"commonjs\"}' > dist/package.json",
-    "prepack": "pnpm build",
     "fetch": "node scripts/fetch.ts",
     "prove": "node scripts/prove.ts",
-    "preversion": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test --run && pnpm build"
+    "test:pack": "./scripts/test-pack.sh",
+    "preversion": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test --run && pnpm build && pnpm test:pack",
+    "version": "git-cliff --tag v$npm_package_version --unreleased --prepend CHANGELOG.md && git add CHANGELOG.md",
+    "postversion": "git push --follow-tags"
   },
   "devDependencies": {
     "@jbrowse/graph-walks": "^8.0.1",
     "@jbrowse/tubemap-core": "^2.0.1",
     "@types/node": "^26.6.6",
+    "git-cliff": "^2.14.2",
     "oxfmt": "^0.79.0",
     "oxlint": "^1.94.0",
     "oxlint-tsgolint": "7.0.2007",
@@ -49,6 +52,10 @@
     "tsrs": "7.1.0-beta.tsrs3",
     "typescript": "^7.0.2",
     "vitest": "^5.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GMOD/graph-fold.git"
   },
   "keywords": [
     "pangenome",
