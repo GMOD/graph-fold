@@ -8,6 +8,7 @@ import type {
   BpSpread,
   Branch,
   BranchAllele,
+  BranchCopies,
   ClusterInfo,
   FoldOptions,
   Folded,
@@ -48,6 +49,45 @@ interface Visit {
 interface BranchTally {
   haplotypes: number
   alleles: Map<string, BranchAllele>
+}
+
+interface Passes {
+  total: number
+  against: number
+}
+
+function times(count: number) {
+  return count === 1 ? 'once' : count === 2 ? 'twice' : `${count} times`
+}
+
+function repeatDescription(passes: Passes[]) {
+  const totals = passes.map(p => p.total)
+  const against = new Set(passes.map(p => p.against))
+  const least = Math.min(...totals)
+  const most = Math.max(...totals)
+  const walked = least === most ? times(most) : `${least} to ${most} times`
+  const reversed =
+    against.size > 1
+      ? ', reversed on some passes'
+      : against.has(0)
+        ? ''
+        : `, ${times(passes[0]!.against)} reversed`
+  return `reference walked ${walked}${reversed}`
+}
+
+function stretchesOf(keys: (string | undefined)[]) {
+  const stretches: { from: number; to: number }[] = []
+  keys.forEach((key, s) => {
+    if (key !== undefined) {
+      const last = stretches.at(-1)
+      if (last?.to === s && keys[s - 1] === key) {
+        last.to = s + 1
+      } else {
+        stretches.push({ from: s, to: s + 1 })
+      }
+    }
+  })
+  return stretches
 }
 
 function parseStep(step: string) {
@@ -371,10 +411,36 @@ function foldWindow<T extends InputTrack>(
     branch: () => BranchDraft,
   ) => {
     const seen = branches.get(key) ?? branch()
-    seen.haplotypes += walk.freq
+    const walks = carriers.get(key) ?? new Set()
+    if (!walks.has(walk.index)) {
+      seen.haplotypes += walk.freq
+    }
     branches.set(key, seen)
-    carriers.set(key, (carriers.get(key) ?? new Set()).add(walk.index))
+    carriers.set(key, walks.add(walk.index))
   }
+  const repeats = new Map<string, Map<number, Passes>>()
+  const piecesOf = (run: ChainedRun & { drawn: Detour[] }) => {
+    const detours = inRefOrder(run, run.drawn)
+    const cuts = [
+      run.start,
+      ...detours.flatMap(d => [d.left, d.right]),
+      run.end,
+    ]
+    return detours
+      .map((_, k) => k)
+      .concat(detours.length)
+      .map(k => ({
+        from: cuts[2 * k]!,
+        to: cuts[2 * k + 1]!,
+        detour: detours[k],
+      }))
+  }
+  const segmentsIn = (from: number, to: number) =>
+    from < to
+      ? segments
+          .slice(segmentOf[from], segmentOf[to - 1]! + 1)
+          .map((_, k) => segmentOf[from]! + k)
+      : []
 
   const foldedWalks = drawn.map(walk => {
     const { steps, prefix, runs, freq } = walk
@@ -465,6 +531,126 @@ function foldWindow<T extends InputTrack>(
       }
     }
 
+    const against = (run: ChainedRun) => run.reversed !== mostlyReversed
+    const passes: Passes[] = segments.map(() => ({ total: 0, against: 0 }))
+    for (const run of runs) {
+      for (const { from, to } of piecesOf(run)) {
+        for (const s of segmentsIn(from, to)) {
+          passes[s]!.total += 1
+          passes[s]!.against += Number(against(run))
+        }
+      }
+    }
+    const tallied = new Set<string>()
+    const reportDetour = (drawnSite: Site, original: Site, node?: string) => {
+      const key = `detour:${siteKey(drawnSite)}`
+      const deletedBp = refBp(drawnSite.left, drawnSite.right)
+      const listed = branches.get(key)
+      if (
+        listed !== undefined &&
+        node !== undefined &&
+        !listed.nodes.includes(node)
+      ) {
+        listed.nodes.push(node)
+      }
+      carry(key, walk, () => ({
+        kind:
+          drawnSite.inserted > 0 && deletedBp > 0
+            ? 'other'
+            : drawnSite.inserted > 0
+              ? 'insertion'
+              : 'deletion',
+        description:
+          drawnSite.inserted > 0 && deletedBp > 0
+            ? 'replacement'
+            : drawnSite.inserted > 0
+              ? 'insertion'
+              : 'deletion',
+        length: Math.max(drawnSite.inserted, deletedBp),
+        insertedBp: drawnSite.inserted,
+        deletedBp,
+        refStart: refPos(drawnSite.left),
+        refEnd: refPos(drawnSite.right),
+        haplotypes: 0,
+        nodes: node === undefined ? [] : [node],
+        from: segments[segmentOf[drawnSite.left - 1]!]!.name,
+        to: segments[segmentOf[drawnSite.right]!]!.name,
+      }))
+      const allele = `${key}|${siteKey(original)}`
+      if (!tallied.has(allele)) {
+        const tally = tallies.get(key) ?? { haplotypes: 0, alleles: new Map() }
+        const seen = tally.alleles.get(siteKey(original)) ?? {
+          refStart: refPos(original.left),
+          refEnd: refPos(original.right),
+          insertedBp: original.inserted,
+          deletedBp: refBp(original.left, original.right),
+          haplotypes: 0,
+        }
+        seen.haplotypes += freq
+        tally.haplotypes += tallied.has(key) ? 0 : freq
+        tally.alleles.set(siteKey(original), seen)
+        tallies.set(key, tally)
+        tallied.add(allele).add(key)
+      }
+    }
+
+    for (const stretch of stretchesOf(
+      passes.map(p => (p.total > 1 ? `${p.total}:${p.against}` : undefined)),
+    )) {
+      const from = segments[stretch.from]!.start
+      const to = segments[stretch.to - 1]!.end
+      const walked = passes[stretch.from]!
+      const names = segmentNames(from, to)
+      const key = `repeat:${from}:${to}:${walked.against > 0}`
+      if (refBp(from, to) >= threshold) {
+        repeats.set(
+          key,
+          (repeats.get(key) ?? new Map<number, Passes>()).set(
+            walk.index,
+            walked,
+          ),
+        )
+        carry(key, walk, () => ({
+          kind: 'other',
+          description: 'reference walked twice',
+          length: refBp(from, to),
+          insertedBp: 0,
+          deletedBp: 0,
+          refStart: refPos(from),
+          refEnd: refPos(to),
+          haplotypes: 0,
+          nodes:
+            boxed && walked.against > 0
+              ? [...names, ...names.map(invertedCopy)]
+              : names,
+        }))
+      }
+    }
+    const junctions = new Set(
+      runs.flatMap((run, r) => [
+        ...(r > 0 ? [run.reversed ? run.end : run.start] : []),
+        ...(r < runs.length - 1 ? [run.reversed ? run.start : run.end] : []),
+      ]),
+    )
+    const jumped = runs.flatMap(run =>
+      run.drawn.filter(detour => detour.right > detour.left),
+    )
+    for (const stretch of stretchesOf(
+      passes.map(p => (p.total === 0 ? 'unwalked' : undefined)),
+    )) {
+      const left = segments[stretch.from]!.start
+      const right = segments[stretch.to - 1]!.end
+      const site = { left, right, inserted: 0 }
+      if (
+        refBp(left, right) >= threshold &&
+        junctions.has(left) &&
+        junctions.has(right) &&
+        jumped.every(detour => detour.right <= left || detour.left >= right)
+      ) {
+        reportDetour(site, site)
+      }
+    }
+
     runs.forEach((run, r) => {
       const first = run.anchors[0]!
       const before = runs[r - 1]
@@ -492,76 +678,72 @@ function foldWindow<T extends InputTrack>(
         if (before.reversed === run.reversed) {
           const from = Math.min(entered, reached)
           const to = Math.max(entered, reached)
-          carry(`repeat:${from}:${to}:${run.reversed}`, walk, () => ({
-            kind: 'other',
-            description: 'reference walked twice',
-            length: refBp(from, to),
-            insertedBp: 0,
-            deletedBp: 0,
-            refStart: refPos(from),
-            refEnd: refPos(to),
-            haplotypes: 0,
-            nodes: segmentNames(from, to),
-          }))
+          if (segmentsIn(from, to).every(s => passes[s]!.total < 2)) {
+            carry(`back:${from}:${to}:${run.reversed}`, walk, () => ({
+              kind: 'other',
+              description: 'reference walked out of order',
+              length: refBp(from, to),
+              insertedBp: 0,
+              deletedBp: 0,
+              refStart: refPos(from),
+              refEnd: refPos(to),
+              haplotypes: 0,
+              nodes: segmentNames(from, to),
+            }))
+          }
         }
       }
-      const boxing = boxed && run.reversed !== mostlyReversed
-      if (run.reversed !== mostlyReversed) {
+      const boxing = boxed && against(run)
+      const pieces = piecesOf(run)
+      const passed = pieces.flatMap(({ from, to }) => segmentsIn(from, to))
+      const alone = passed.filter(s => passes[s]!.total === 1)
+      const whole = alone.length === passed.length
+      const start = whole ? run.start : (segments[alone[0] ?? 0]?.start ?? 0)
+      const end = whole ? run.end : (segments[alone.at(-1) ?? 0]?.end ?? 0)
+      const aloneBp = alone.reduce((bp, s) => bp + segments[s]!.length, 0)
+      if (against(run) && (whole || aloneBp >= threshold)) {
         const open = r === 0 || r === runs.length - 1
-        carry(`inversion:${run.start}:${run.end}:${open}`, walk, () => ({
+        carry(`inversion:${start}:${end}:${open}`, walk, () => ({
           kind: 'inversion',
           description: 'inversion',
-          length: refBp(run.start, run.end),
+          length: refBp(start, end),
           insertedBp: 0,
           deletedBp: 0,
-          refStart: refPos(run.start),
-          refEnd: refPos(run.end),
+          refStart: refPos(start),
+          refEnd: refPos(end),
           haplotypes: 0,
           nodes: boxed
-            ? segmentNames(run.start, run.end).map(invertedCopy)
-            : segmentNames(run.start, run.end),
-          ...(run.start > 0
-            ? { from: segments[segmentOf[run.start - 1]!]!.name }
-            : {}),
-          ...(run.end < refSteps.length
-            ? { to: segments[segmentOf[run.end]!]!.name }
+            ? segmentNames(start, end).map(invertedCopy)
+            : segmentNames(start, end),
+          ...(start > 0 ? { from: segments[segmentOf[start - 1]!]!.name } : {}),
+          ...(end < refSteps.length
+            ? { to: segments[segmentOf[end]!]!.name }
             : {}),
           ...(open ? { open } : {}),
         }))
       }
 
-      const detours = inRefOrder(run, run.drawn)
-      const cuts = [
-        run.start,
-        ...detours.flatMap(d => [d.left, d.right]),
-        run.end,
-      ]
       const bySegment = new Map<number, Visit>()
       const byPair = new Map<number, Visit>()
       const elements: Visit[] = []
       const covered: [number, number][] = []
-      for (let k = 0; k < cuts.length; k += 2) {
-        const from = cuts[k]!
-        const to = cuts[k + 1]!
+      for (const { from, to, detour } of pieces) {
         covered.push([from, to])
-        if (from < to) {
-          for (let s = segmentOf[from]!; s <= segmentOf[to - 1]!; s++) {
-            const segment = segments[s]!
-            const visit: Visit = {
-              node: boxing ? invertedCopy(segment.name) : segment.name,
-              reversed: boxing ? mostlyReversed : run.reversed,
-              length: segment.length,
-              walked: 0,
-              extra: 0,
-              clipped:
-                segment.length -
-                refBp(Math.max(from, segment.start), Math.min(to, segment.end)),
-            }
-            bySegment.set(s, visit)
-            elements.push(visit)
+        for (const s of segmentsIn(from, to)) {
+          const segment = segments[s]!
+          const visit: Visit = {
+            node: boxing ? invertedCopy(segment.name) : segment.name,
+            reversed: boxing ? mostlyReversed : run.reversed,
+            length: segment.length,
+            walked: 0,
+            extra: 0,
+            clipped:
+              segment.length -
+              refBp(Math.max(from, segment.start), Math.min(to, segment.end)),
           }
+          bySegment.set(s, visit)
+          elements.push(visit)
         }
-        const detour = detours[k / 2]
         if (detour !== undefined && detour.inserted > 0) {
           const name =
             detour.right > detour.left
@@ -605,53 +787,11 @@ function foldWindow<T extends InputTrack>(
       })
 
       run.drawn.forEach(detour => {
-        const original = run.detours.find(d => d.pair === detour.pair)!
-        const key = `detour:${siteKey(detour)}`
-        const deletedBp = refBp(detour.left, detour.right)
-        const node = byPair.get(detour.pair)?.node
-        const listed = branches.get(key)
-        if (
-          listed !== undefined &&
-          node !== undefined &&
-          !listed.nodes.includes(node)
-        ) {
-          listed.nodes.push(node)
-        }
-        carry(key, walk, () => ({
-          kind:
-            detour.inserted > 0 && deletedBp > 0
-              ? 'other'
-              : detour.inserted > 0
-                ? 'insertion'
-                : 'deletion',
-          description:
-            detour.inserted > 0 && deletedBp > 0
-              ? 'replacement'
-              : detour.inserted > 0
-                ? 'insertion'
-                : 'deletion',
-          length: Math.max(detour.inserted, deletedBp),
-          insertedBp: detour.inserted,
-          deletedBp,
-          refStart: refPos(detour.left),
-          refEnd: refPos(detour.right),
-          haplotypes: 0,
-          nodes: node === undefined ? [] : [node],
-          from: segments[segmentOf[detour.left - 1]!]!.name,
-          to: segments[segmentOf[detour.right]!]!.name,
-        }))
-        const tally = tallies.get(key) ?? { haplotypes: 0, alleles: new Map() }
-        const allele = tally.alleles.get(siteKey(original)) ?? {
-          refStart: refPos(original.left),
-          refEnd: refPos(original.right),
-          insertedBp: original.inserted,
-          deletedBp: refBp(original.left, original.right),
-          haplotypes: 0,
-        }
-        allele.haplotypes += freq
-        tally.haplotypes += freq
-        tally.alleles.set(siteKey(original), allele)
-        tallies.set(key, tally)
+        reportDetour(
+          detour,
+          run.detours.find(d => d.pair === detour.pair)!,
+          byPair.get(detour.pair)?.node,
+        )
       })
 
       if (r === runs.length - 1) {
@@ -802,6 +942,32 @@ function foldWindow<T extends InputTrack>(
       return [walk.index, folded]
     }),
   )
+  const copiesOf = (key: string) => {
+    const walked = [...(repeats.get(key) ?? [])]
+    const counts = new Map<string, BranchCopies>()
+    for (const [index, { total, against }] of walked) {
+      const count = counts.get(`${total}:${against}`) ?? {
+        passes: total,
+        reversed: against,
+        haplotypes: 0,
+        tracks: [],
+      }
+      const track = trackOfWalk.get(index) ?? 0
+      count.haplotypes += tracks[index]!.freq ?? 1
+      count.tracks = count.tracks.includes(track)
+        ? count.tracks
+        : [...count.tracks, track].sort((a, b) => a - b)
+      counts.set(`${total}:${against}`, count)
+    }
+    return walked.length > 0
+      ? {
+          description: repeatDescription(walked.map(([, p]) => p)),
+          copies: [...counts.values()].sort(
+            (a, b) => a.passes - b.passes || a.reversed - b.reversed,
+          ),
+        }
+      : {}
+  }
   const branchList = [...branches].map(([key, draft]) => {
     const clustered = clusterOf(key)
     if (clustered !== undefined) {
@@ -815,6 +981,7 @@ function foldWindow<T extends InputTrack>(
     const branch: Branch = {
       ...draft,
       ...clustered,
+      ...copiesOf(key),
       tracks: [
         ...new Set(
           [...(carriers.get(key) ?? [])].map(w => trackOfWalk.get(w) ?? 0),

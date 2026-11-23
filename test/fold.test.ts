@@ -582,6 +582,200 @@ describe('a haplotype that walks reference twice', () => {
       },
     ])
   })
+
+  const blocks = { a: 100, b: 300, c: 300, d: 300, e: 100 }
+
+  test('a branch says how many times each track passes the block, and counts a carrier once', () => {
+    const result = fold(
+      blocks,
+      ['a b c d e', 'a b b b c d e', 'a b b c d e'],
+      { threshold: 50 },
+      [1, 2, 5],
+    )
+    expect(sequences(result)).toEqual(['a b c~e', 'a b b b c~e', 'a b b c~e'])
+    expect(result.branches).toMatchObject([
+      {
+        kind: 'other',
+        description: 'reference walked 2 to 3 times',
+        length: 300,
+        haplotypes: 7,
+        nodes: ['b'],
+        tracks: [1, 2],
+        copies: [
+          { passes: 2, reversed: 0, haplotypes: 5, tracks: [2] },
+          { passes: 3, reversed: 0, haplotypes: 2, tracks: [1] },
+        ],
+      },
+    ])
+    expect(branchLabel(result.branches[0]!, result.haplotypes)).toBe(
+      'reference walked 2 to 3 times 300 bp, 7 of 8',
+    )
+  })
+
+  test('three passes by every carrier read as three', () => {
+    const result = fold(blocks, ['a b c d e', 'a b c d b c d b c d e'], {
+      threshold: 50,
+    })
+    expect(result.branches).toMatchObject([
+      {
+        description: 'reference walked 3 times',
+        length: 900,
+        haplotypes: 1,
+        copies: [{ passes: 3, reversed: 0, haplotypes: 1, tracks: [1] }],
+      },
+    ])
+  })
+
+  test('a copy walked backwards is a second pass, not an inversion', () => {
+    const result = fold(blocks, ['a b c d e', 'a b -b c d e'], {
+      threshold: 50,
+    })
+    expect(sequences(result)).toEqual(['a b c~e', 'a b -b c~e'])
+    expect(result.branches).toMatchObject([
+      {
+        kind: 'other',
+        description: 'reference walked twice, once reversed',
+        length: 300,
+        nodes: ['b'],
+        copies: [{ passes: 2, reversed: 1, haplotypes: 1, tracks: [1] }],
+      },
+    ])
+  })
+
+  test("with inversions: 'box' the backwards pass steps the copy, and the branch names both", () => {
+    const result = fold(blocks, ['a b c d e', 'a b -b c d e'], {
+      threshold: 50,
+      inversions: 'box',
+    })
+    expect(sequences(result)).toEqual(['a b c~e', 'a b inv:b c~e'])
+    expect(result.branches).toMatchObject([
+      {
+        description: 'reference walked twice, once reversed',
+        nodes: ['b', 'inv:b'],
+      },
+    ])
+  })
+
+  test('a reversed run is an inversion only over the reference it alone walks', () => {
+    const result = fold(blocks, ['a b c d e', 'a b -c -b d e'], {
+      threshold: 50,
+    })
+    expect(sequences(result)).toEqual(['a b c d~e', 'a b -c -b d~e'])
+    expect(result.branches).toMatchObject([
+      {
+        description: 'reference walked twice, once reversed',
+        refStart: 100,
+        refEnd: 400,
+        nodes: ['b'],
+      },
+      {
+        kind: 'inversion',
+        refStart: 400,
+        refEnd: 700,
+        nodes: ['c'],
+        from: 'b',
+        to: 'd~e',
+      },
+    ])
+  })
+
+  test('a step back that repeats nothing is out of order, not walked twice', () => {
+    const result = fold(blocks, ['a b c d e', 'a c d b e'], { threshold: 50 })
+    expect(sequences(result)).toEqual(['a b c~d e', 'a c~d b e'])
+    expect(result.branches.map(b => b.description)).toEqual([
+      'deletion',
+      'reference walked out of order',
+      'deletion',
+    ])
+    expect(result.branches[1]).toMatchObject({
+      kind: 'other',
+      refStart: 100,
+      refEnd: 1000,
+      nodes: ['b', 'c~d'],
+    })
+    expect(result.branches[1]!.copies).toBeUndefined()
+  })
+
+  test('a jump a walk takes on both of its passes counts its haplotypes once', () => {
+    const { nodes, tracks } = graph(
+      blocks,
+      ['a b c d e', 'a c d e -e -d -c -a'],
+      [1, 4],
+    )
+    const result = foldGraph(nodes, tracks, { threshold: 50 })
+    expect(foldProblems(nodes, tracks, result)).toEqual([])
+    expect(result.branches.find(b => b.kind === 'deletion')).toMatchObject({
+      refStart: 100,
+      refEnd: 400,
+      haplotypes: 4,
+    })
+  })
+
+  test('a count above what the tracks hold is a problem', () => {
+    const { nodes, tracks } = graph(blocks, ['a b c d e', 'a c d e'])
+    const result = foldGraph(nodes, tracks, { threshold: 50 })
+    const inflated = {
+      ...result,
+      branches: result.branches.map(b => ({ ...b, haplotypes: 2 })),
+    }
+    expect(foldProblems(nodes, tracks, inflated)).toEqual([
+      'deletion at 100 counts 2 haplotypes and its tracks hold 1',
+    ])
+  })
+})
+
+describe('reference left unwalked beside an inversion', () => {
+  const lengths = { a: 100, b: 100, c: 100, d: 100, e: 100 }
+
+  test('is a deletion, shared with the walks that jump it', () => {
+    const result = fold(
+      lengths,
+      ['a b c d e', 'a -c -b e', 'a b c e'],
+      { threshold: 50 },
+      [1, 3, 2],
+    )
+    expect(sequences(result)).toEqual(['a b~c d e', 'a -b~c e', 'a b~c e'])
+    expect(result.branches).toMatchObject([
+      { kind: 'inversion', refStart: 100, refEnd: 300, haplotypes: 3 },
+      {
+        kind: 'deletion',
+        refStart: 300,
+        refEnd: 400,
+        deletedBp: 100,
+        haplotypes: 5,
+        from: 'b~c',
+        to: 'e',
+        tracks: [1, 2],
+      },
+    ])
+  })
+
+  test('on both sides of it', () => {
+    const result = fold(lengths, ['a b c d e', 'a -c e'], { threshold: 50 })
+    expect(
+      result.branches.map(b => [b.kind, b.refStart, b.refEnd, b.from, b.to]),
+    ).toEqual([
+      ['deletion', 100, 200, 'a', 'c'],
+      ['inversion', 200, 300, 'b', 'd'],
+      ['deletion', 300, 400, 'c', 'e'],
+    ])
+  })
+
+  test('a walk that ends before it returns leaves no deletion', () => {
+    const result = fold(lengths, ['a b c d e', 'a -e -d'], { threshold: 50 })
+    expect(result.branches.map(b => b.kind)).not.toContain('deletion')
+  })
+
+  test('a clustered deletion counts the walk that leaves it unwalked', () => {
+    const result = fold(
+      { ...lengths, c: 1000, d: 1000, s: 10 },
+      ['a b c s d e', 'a -c -b e', 'a b c e', 'a b c s e'],
+      { threshold: 50, cluster: true },
+    )
+    const deletion = result.branches.find(b => b.kind === 'deletion')
+    expect(deletion).toMatchObject({ haplotypes: 3 })
+    expect(deletion?.cluster).toMatchObject({ haplotypes: 3 })
+  })
 })
 
 describe('clustering near-equal alleles', () => {

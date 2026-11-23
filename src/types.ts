@@ -75,6 +75,13 @@ export interface BranchAllele {
   haplotypes: number
 }
 
+export interface BranchCopies {
+  passes: number
+  reversed: number
+  haplotypes: number
+  tracks: number[]
+}
+
 export interface Branch {
   kind: BranchKind
   description: string
@@ -92,6 +99,7 @@ export interface Branch {
   open?: boolean
   cluster?: ClusterInfo
   alleles?: BranchAllele[]
+  copies?: BranchCopies[]
 }
 
 export interface FoldedStep {

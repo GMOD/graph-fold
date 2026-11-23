@@ -113,6 +113,22 @@ function foldedProblems(
         `${branch.description} at ${branch.refStart} names no track, or one that is not there`,
       )
     }
+    const carried = haplotypes(
+      branch.tracks.flatMap(id => result.tracks[id] ?? []),
+    )
+    if (branch.haplotypes > carried) {
+      problems.push(
+        `${branch.description} at ${branch.refStart} counts ${branch.haplotypes} haplotypes and its tracks hold ${carried}`,
+      )
+    }
+    const copied = haplotypes(
+      (branch.copies ?? []).map(({ haplotypes: freq }) => ({ freq })),
+    )
+    if (branch.copies !== undefined && copied !== branch.haplotypes) {
+      problems.push(
+        `${branch.description} at ${branch.refStart} counts ${branch.haplotypes} haplotypes and its copies ${copied}`,
+      )
+    }
   }
   return problems
 }
