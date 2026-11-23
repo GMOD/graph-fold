@@ -9,11 +9,11 @@ importers:
   .:
     devDependencies:
       '@jbrowse/graph-walks':
-        specifier: ^8.0.1
-        version: 8.0.1
+        specifier: ^9.1.0
+        version: 9.1.0
       '@jbrowse/tubemap-core':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.2.0
+        version: 2.2.0
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
@@ -59,12 +59,12 @@ packages:
   '@isaacs/nonrecursive-glob-match@1.1.0':
     resolution: {integrity: sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw==}
 
-  '@jbrowse/graph-walks@8.0.1':
-    resolution: {integrity: sha512-4AidVXyIsggJkckxlgcTJYEMsObd3p+H1+d7PpRU5wflb8NQA1JuqSHePCrypAcL/Kw7QO57kG+dBecIYgUy3g==}
+  '@jbrowse/graph-walks@9.1.0':
+    resolution: {integrity: sha512-H+G7WQNjaypsjJB1xwFxIMf14gSC0G7t3uckjl8LNVN44edqGlxS4YDuju3VbAyYHUHjbh22HtaUhfFvykipVA==}
     engines: {node: '>=20'}
 
-  '@jbrowse/tubemap-core@2.0.1':
-    resolution: {integrity: sha512-tpufiNVlRWzGiOdbWERDg6vPdmKqZMxbVWAHy8vW0Lk6CLlf9zc2Jy9kcVIR8ybkzsktpfpb0pETdDDK6FWdpA==}
+  '@jbrowse/tubemap-core@2.2.0':
+    resolution: {integrity: sha512-rzryd+LA7ZY0JU4EjEgGyPGUsstRm3fIFD9E1QF2uAH9+LwDnJM1nMEP/xXSdLfAbYDjom3kh/VxyD9oxJ5Eag==}
 
   '@jridgewell/resolve-uri@3.1.3':
     resolution: {integrity: sha512-lhTtjtoEArWBjismtfS761S9Hlyn+nIZqOZVYoZ1Xn82PMNMVnk+jj/NhC4fAXGTs7ydONcJiR5vyQBTMDu27g==}
@@ -1157,12 +1157,12 @@ snapshots:
 
   '@isaacs/nonrecursive-glob-match@1.1.0': {}
 
-  '@jbrowse/graph-walks@8.0.1':
+  '@jbrowse/graph-walks@9.1.0':
     dependencies:
       '@gmod/bgzf-filehandle': 6.8.5
       generic-filehandle2: 2.5.1
 
-  '@jbrowse/tubemap-core@2.0.1': {}
+  '@jbrowse/tubemap-core@2.2.0': {}
 
   '@jridgewell/resolve-uri@3.1.3': {}
 

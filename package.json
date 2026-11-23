@@ -41,8 +41,8 @@
     "postversion": "git push --follow-tags"
   },
   "devDependencies": {
-    "@jbrowse/graph-walks": "^8.0.1",
-    "@jbrowse/tubemap-core": "^2.0.1",
+    "@jbrowse/graph-walks": "^9.1.0",
+    "@jbrowse/tubemap-core": "^2.2.0",
     "@types/node": "^26.6.6",
     "git-cliff": "^2.14.2",
     "oxfmt": "^0.79.0",
