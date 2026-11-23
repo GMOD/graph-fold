@@ -470,6 +470,19 @@ describe('what a tube stands for', () => {
     ])
   })
 
+  test('a reference given with a count names the haplotypes identical to it', () => {
+    const result = fold(
+      { a: 100, b: 100 },
+      ['a b', 'a b'],
+      { threshold: 50 },
+      [3, 2],
+    )
+    expect(result.tracks.map(t => t.label)).toEqual([
+      'ref and 2 identical haplotypes',
+      '2 haplotypes',
+    ])
+  })
+
   test('a spread whose ends round alike reads as one size', () => {
     const result = fold(
       { a: 100, b: 2900, c: 2910, d: 100 },

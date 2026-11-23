@@ -34,6 +34,12 @@ export function trackLabel(freq: number, names: string[]) {
     : plural(freq, 'haplotype')
 }
 
+export function referenceLabel(name: string, freq: number) {
+  return freq > 1
+    ? `${name} and ${plural(freq - 1, 'identical haplotype')}`
+    : name
+}
+
 export function variationLabel({ freq, variation }: FoldedTrackFields) {
   const { walks, foldedAwayBp } = variation
   const least = bpLabel(foldedAwayBp.min)

@@ -173,6 +173,9 @@ Every renderer should print the same text, so the package makes it:
   `439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`
 - `bpLabel(bp)`: `584 bp`, `45.5 kb`
 - `track.label`, or `trackLabel(freq, names)`
+- The reference's `label` is its name, followed by `and 1 identical haplotype`
+  where its track came with a `freq` over 1; `referenceLabel(name, freq)` gives
+  the same text
 
 `foldProblems(nodes, tracks, result)` lists every broken invariant: a step on a
 node that is not there, a jump no branch reports, a haplotype count that

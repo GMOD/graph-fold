@@ -1,6 +1,6 @@
 import { chain, runBounds } from './chain.ts'
 import { clusterLeaders, siteKey } from './cluster.ts'
-import { trackLabel } from './labels.ts'
+import { referenceLabel, trackLabel } from './labels.ts'
 
 import type { Anchor } from './chain.ts'
 import type { Site } from './cluster.ts'
@@ -743,7 +743,7 @@ function foldWindow<T extends InputTrack>(
     ...refTrack,
     id: 0,
     name: refName,
-    label: refName,
+    label: referenceLabel(refName, refTrack.freq ?? 1),
     sequence: segments.map(segment => segment.name),
     freq: refTrack.freq ?? 1,
     sourceTrackID: refTrack.sourceTrackID ?? 0,
