@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/GMOD/graph-fold/compare/v1.0.1...v1.1.0) (2026-11-23)
+
+### Features
+
+- A track's haplotype names the haplotype its walk is part of, so the fragments of one haplotype count once ([a4b33c1](https://github.com/GMOD/graph-fold/commit/a4b33c11e3531da4d74d9c1babc0be3c67516856))
+
 ## [1.0.1](https://github.com/GMOD/graph-fold/compare/v1.0.0...v1.0.1) (2026-11-23)
 
 ### Bug Fixes
