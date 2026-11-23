@@ -2,7 +2,7 @@ import type { Branch, FoldedTrackFields } from './types.ts'
 
 export function bpLabel(bp: number) {
   return bp >= 1000
-    ? `${(bp / 1000).toFixed(bp >= 100_000 ? 0 : 1)} kb`
+    ? `${(bp / 1000).toFixed(bp >= 100_000 ? 0 : 1).replace(/\.0$/, '')} kb`
     : `${bp} bp`
 }
 
@@ -12,13 +12,18 @@ function plural(count: number, noun: string) {
 
 export function branchLabel(branch: Branch, haplotypes: number) {
   const { cluster, insertedBp, deletedBp, length } = branch
-  const size =
-    cluster && cluster.minLength !== cluster.maxLength
-      ? `${bpLabel(cluster.minLength)} to ${bpLabel(cluster.maxLength)}`
-      : insertedBp > 0 && deletedBp > 0
-        ? `${bpLabel(insertedBp)} for ${bpLabel(deletedBp)}`
-        : bpLabel(length)
-  const lengths = cluster ? ` (${plural(cluster.members, 'length')})` : ''
+  const shortest = cluster ? bpLabel(cluster.minLength) : ''
+  const longest = cluster ? bpLabel(cluster.maxLength) : ''
+  const size = cluster
+    ? shortest === longest
+      ? `about ${longest}`
+      : `${shortest} to ${longest}`
+    : insertedBp > 0 && deletedBp > 0
+      ? `${bpLabel(insertedBp)} for ${bpLabel(deletedBp)}`
+      : bpLabel(length)
+  const lengths = cluster
+    ? ` (cluster of ${plural(cluster.members, 'length')})`
+    : ''
   return `${branch.description} ${size}${lengths}, ${branch.haplotypes} of ${haplotypes}`
 }
 

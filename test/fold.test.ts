@@ -437,9 +437,9 @@ describe('labels', () => {
     )
     expect(result.branches.map(b => branchLabel(b, result.haplotypes))).toEqual(
       [
-        'insertion 1.0 kb to 1.0 kb (2 lengths), 7 of 13',
-        'deletion 30.0 kb, 4 of 13',
-        'replacement 20.0 kb for 30.0 kb, 1 of 13',
+        'insertion about 1 kb (cluster of 2 lengths), 7 of 13',
+        'deletion 30 kb, 4 of 13',
+        'replacement 20 kb for 30 kb, 1 of 13',
       ],
     )
     expect(result.tracks.map(variationLabel)).toEqual([
@@ -449,6 +449,8 @@ describe('labels', () => {
       '1 haplotype on 1 distinct walk, nothing folded away',
     ])
     expect(bpLabel(999)).toBe('999 bp')
+    expect(bpLabel(1000)).toBe('1 kb')
+    expect(bpLabel(45_516)).toBe('45.5 kb')
     expect(bpLabel(123_456)).toBe('123 kb')
   })
 })

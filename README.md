@@ -168,7 +168,7 @@ Every renderer should print the same text, so the package makes it:
 
 - `branchLabel(branch, fold.haplotypes)`: `deletion 45.5 kb, 306 of 464`,
   `replacement 15.7 kb for 6.3 kb, 1 of 464`, and for a cluster its range and
-  member count, `insertion 8.9 kb to 9.5 kb (56 lengths), 129 of 464`
+  member count, `insertion 8.9 kb to 9.5 kb (cluster of 56 lengths), 129 of 464`
 - `variationLabel(track)`:
   `439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`
 - `bpLabel(bp)`: `584 bp`, `45.5 kb`
