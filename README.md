@@ -161,7 +161,7 @@ preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`, banded by
 | chr1-deletion   | folded at 1000 bp            | 63    | 64             | 7               | 1,458           | 7                 | 1,167             |
 | chr1-deletion   | folded at 50 bp, clustered   | 10    | 6              | 9               | 1,309           | 9                 | 1,182             |
 | chr1-deletion   | folded at 1000 bp, clustered | 8     | 6              | 7               | 1,081           | 7                 | 982               |
-| chr16-inversion | before                       | 1,655 | 377            | 1,104           | 84,515          | 1,104             | 156,585           |
+| chr16-inversion | before                       | 1,655 | 377            | 1,104           | 86,654          | 1,104             | 156,585           |
 | chr16-inversion | folded at 50 bp              | 5     | 4              | 5               | 758             | 5                 | 742               |
 | chr16-inversion | folded at 1000 bp            | 3     | 3              | 3               | 504             | 3                 | 491               |
 

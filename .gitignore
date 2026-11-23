@@ -11,3 +11,4 @@ esm
 .claude/worktrees/
 data
 docs/*-before.svg
+*.tgz
