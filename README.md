@@ -90,6 +90,13 @@ if (fold.folded) {
   - both big: a replacement, kind `other`
 - A run in the other direction is an inversion. It stays a block the walk takes
   reversed, `A -B C`, and is never a deletion
+- Reference a walk passes more than once is a repeat, kind `other`, with the
+  number of passes each carrier makes in `copies`. A reversed pass over
+  reference the walk also passes another time is one of those passes and not an
+  inversion: `A B -B C` walks `B` twice, once reversed. A reversed run is an
+  inversion over the reference it alone walks
+- Reference a walk leaves unwalked between two of its runs, as beside an
+  inversion in `A -C -B E`, is a deletion when it reaches the threshold
 - A run between two others that spans less reference than the threshold is not a
   run: its bp count as the walk's own sequence there. A repeat of reference
   shorter than the threshold folds the same way
@@ -138,11 +145,17 @@ if (fold.folded) {
 - `branches`, in reference order:
   - `kind`: `insertion`, `deletion`, `inversion` or `other`, and `description`,
     which says which `other`: `replacement`, `reference walked twice`,
-    `walk starts inside the window`, and so on
+    `reference walked 2 to 3 times`, `reference walked twice, once reversed`,
+    `reference walked out of order`, `walk starts inside the window`, and so on
   - `length`, `insertedBp`, `deletedBp`, `refStart`, `refEnd`: positions are on
     the reference, counted from the reference track's `indexOfFirstBase`
-  - `haplotypes`: the summed `freq` of the walks that carry it, and `tracks`:
-    the `id` of each folded track that does
+  - `haplotypes`: the summed `freq` of the walks that carry it, each walk once
+    however often it takes the branch, and `tracks`: the `id` of each folded
+    track that does
+  - `copies`, only on a repeat: one `{ passes, reversed, haplotypes, tracks }`
+    for each number of passes its carriers make, `reversed` being how many of
+    the passes run against the walk's own direction. The track's `sequence`
+    steps the nodes that many times, so a tube map draws the loops
   - `nodes`: the folded nodes that are the branch, the insertion's node or the
     inverted backbone nodes
   - `from` and `to`: the backbone nodes on either side of it. A deletion is the
@@ -179,7 +192,8 @@ Every renderer should print the same text, so the package makes it:
 
 `foldProblems(nodes, tracks, result)` lists every broken invariant: a step on a
 node that is not there, a jump no branch reports, a haplotype count that
-changed, a walk whose bp do not reconcile.
+changed, a walk whose bp do not reconcile, a branch that counts more haplotypes
+than its tracks hold.
 
 ## What a tube hides
 
@@ -323,9 +337,41 @@ preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`, banded by
   so a tube cannot take one branch's colour. `docs/chr15-alleles-fold-50.png` is
   the same fold as tubes, and
   `docs/chr1-deletion-fold-1000-clustered-banded.png` the chr1 fold banded
-- `pnpm fetch` cuts the windows and `pnpm prove` prints the table, checks the
-  invariants and writes the pictures. `TUBEMAP_CORE` and `GRAPH_WALKS` name
+- `pnpm run fetch` cuts the windows and `pnpm prove` prints the table, checks
+  the invariants and writes the pictures. `TUBEMAP_CORE` and `GRAPH_WALKS` name
   another build of either package for the scripts to import
+
+## Duplications, inversions with structure, overlapping branches
+
+Three more windows of the same graph, each folded at 50, 1000 and 5000 bp, with
+and without clustering and with inversions boxed. `pnpm prove` checks the counts
+below, which are those of graph-walks' departures over the same breakpoints.
+
+- **chr14:34,543,000-34,562,000.** A 7.4 kb inversion on 196 haplotypes. Three
+  more carry it with a 2.7 kb deletion inside the inverted block, and three
+  invert 5 kb of it and leave 2.4 kb and 2.5 kb on either side unwalked, which
+  are two deletions
+- **chr6:31,970,000-32,050,000, C4A and C4B.** The graph holds the extra copies
+  off the reference, so they fold as insertions of 26.4 kb and 32.7 kb and no
+  walk revisits a reference node. The 32.7 kb deletion on 155 haplotypes spans
+  the 6.4 kb deletion on 225
+- **chr1:103,550,000-103,800,000, AMY1.** Walks pass the same reference up to
+  eight times, forward and reversed. 378 walks take the 94.2 kb jump, 168 of
+  them on two passes. Of its 167 distinct folded walks the picture draws the 8
+  most carried
+
+![chr14 folded at 1000 bp with clustering](docs/chr14-inversion-fold-1000-clustered.png)
+
+![C4 folded at 1000 bp with clustering](docs/chr6-c4-fold-1000-clustered.png)
+
+![AMY1 folded at 5000 bp with clustering](docs/chr1-amy1-fold-5000-clustered.png)
+
+Also run and not in `pnpm prove`: GSTM1 (chr1:109,680,000-109,715,000), the
+KIV-2 repeat of LPA (chr6:160,600,000-160,660,000), a 114 kb deletion holding a
+21.9 kb one (chr3:162,650,000-163,050,000), and inversions at chr22:21.44 Mb,
+chr7:63.36 Mb, chr16:1.23 Mb, chr11:4.23 Mb and chrX:155.38 Mb. Every fold
+passes `foldProblems`, and at 1000 bp every deletion that is one jump has the
+carriers, by haplotype name, of the departures over its breakpoints.
 
 ## Limits
 
@@ -336,21 +382,41 @@ preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`, banded by
   branch list says `walk ends inside the window`, not what the departure does
 - **An insertion is its site and its length.** Two alleles of one length at one
   site are one branch whatever their sequence; `members` lists the nodes of both
+- **A duplication the graph holds off the reference is an insertion.** C4 and
+  the KIV-2 repeat fold as insertions and replacements; nothing says the
+  inserted sequence is a copy
+- **A jump is a deletion even where the walk comes back.** On AMY1 a walk jumps
+  94.2 kb and later walks part of that reference on another pass. The branch
+  says `deletion`, which is the step the walk takes there and not a statement
+  that the haplotype lacks the sequence; the repeat branches over the same
+  reference say what it walks
+- **A repeat is cut where the pass count changes.** A walk with three copies of
+  one stretch and two of the next gets two repeat branches, and walks with
+  different ends get different branches, so AMY1 at 5000 bp has 23 of them. They
+  are not clustered
+- **Sequence between two runs is not clustered.** AMY1 keeps 95 branches of
+  `sequence off the reference between two breakpoints`, most within a few bp of
+  75 kb
+- **An inversion inside an inversion is two inversions.** `A -D C -B E` reports
+  `B` and `D` inverted and `C` not, which is the route and not the nesting. No
+  window with one was found: none of the 142 windows over the inversions of the
+  HPRC structural record table has a walk of that shape at 50 bp
 - **Nothing is nested.** A variant inside a kept insertion changes that
   insertion's length and makes it another allele. A big detour inside an
-  inversion is kept; an inversion inside an inversion is untested
+  inversion is kept
 - **Close breakpoints leave short backbone nodes.** The chr1 window keeps a 1 bp
-  node between a deletion's end and a replacement's end one bp apart
+  node between a deletion's end and a replacement's end one bp apart; chr14
+  keeps one of 1 bp and C4 ones of 6 and 9 bp
 - **A walk that lies wholly inside an inversion** takes every step reversed, as
   does a walk written against the reference. The fold cannot tell them apart,
-  reports no inversion for either, and draws both reversed over the merged nodes
-- **A haplotype that walks reference twice** keeps both passes when the repeat
-  reaches the threshold, as a branch of kind `other`. Synthetic tests only; how
-  a layout draws the revisit is untested
+  reports no inversion for either, and draws both reversed over the merged
+  nodes. A walk whose two ends run opposite ways takes the direction most of its
+  reference runs
 - **Fragments are walks.** A haplotype in two tracks counts twice in
-  `haplotypes`
+  `haplotypes` and in a branch both fragments carry. The AMY1 window has 490
+  walks under 464 haplotype names, the reference among them
 - **A graph whose reference revisits a node is never folded,** however far the
-  revisit is from the window
+  revisit is from the window. No pggb window of a human graph was run
 
 ## License
 

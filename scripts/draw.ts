@@ -238,7 +238,7 @@ export function drawTubeMap(
   const { minX, maxX, minY, maxY } = layout.bounds
   const natural = maxX - minX + 20
   const scale = Math.min(1.5, (pictureWidth - 2 * margin) / natural)
-  const total = fold?.tracks.reduce((sum, t) => sum + t.freq, 0) ?? 0
+  const total = fold?.haplotypes ?? 0
   const toX = (x: number) => margin + (x - minX + 10) * scale
   const anchored = fold ? anchors(layout, fold) : []
   const labelled = [...anchored]

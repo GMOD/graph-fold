@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { bpLabel, branchLabel, foldGraph, foldProblems } from '../src/index.ts'
 import { drawTubeMap } from './draw.ts'
 import { layoutTubeMap } from './tubemap.ts'
-import { windows } from './windows.ts'
+import { expectedBranches, windows } from './windows.ts'
 
 import type { Folded, InputNode, InputTrack } from '../src/index.ts'
 
@@ -84,23 +84,46 @@ function expectBranch(
   }
 }
 
-for (const { id, title, file } of windows) {
+const nodeName = (step: string) => (step.startsWith('-') ? step.slice(1) : step)
+
+function mostCarried(fold: Folded, most: number) {
+  const tracks = [
+    fold.tracks[0]!,
+    ...fold.tracks
+      .slice(1)
+      .sort((a, b) => b.freq - a.freq)
+      .slice(0, most),
+  ]
+  const stepped = new Set(tracks.flatMap(t => t.sequence.map(nodeName)))
+  const ids = new Set(tracks.map(t => t.id))
+  const shown: Folded = {
+    ...fold,
+    tracks,
+    nodes: fold.nodes.filter(node => stepped.has(node.name)),
+    branches: fold.branches.filter(b => b.tracks.some(id => ids.has(id))),
+  }
+  return shown
+}
+
+for (const { id, title, file, drawnAt } of windows) {
   if (!existsSync(file)) {
     throw new Error(`${file} is missing; run pnpm fetch`)
   }
   const window: Window = JSON.parse(readFileSync(file, 'utf8'))
   const haplotypes = window.tracks.reduce((sum, t) => sum + (t.freq ?? 1), 0)
-  const before = measure(window.nodes, window.tracks)
   const row = (label: string, m: ReturnType<typeof measure>) =>
     `| ${id} | ${label} | ${count(m.nodes)} | ${count(m.walks)} | ${count(m.banded.columns)} | ${count(m.banded.px)} | ${count(m.unbanded.columns)} | ${count(m.unbanded.px)} |`
-  rows.push(row('before', before))
-  picture(
-    `${id}-before`,
-    drawTubeMap(before.bandedLayout, [
-      `${title}: before`,
-      `${count(before.nodes)} nodes, ${count(before.walks)} distinct walks of ${haplotypes} haplotypes, ${count(before.banded.columns)} columns; the layout is ${count(before.banded.px)} px wide and is drawn here at ${((100 * 1352) / (before.banded.px + 20)).toFixed(1)}% of that`,
-    ]),
-  )
+  if (drawnAt === undefined) {
+    const before = measure(window.nodes, window.tracks)
+    rows.push(row('before', before))
+    picture(
+      `${id}-before`,
+      drawTubeMap(before.bandedLayout, [
+        `${title}: before`,
+        `${count(before.nodes)} nodes, ${count(before.walks)} distinct walks of ${haplotypes} haplotypes, ${count(before.banded.columns)} columns; the layout is ${count(before.banded.px)} px wide and is drawn here at ${((100 * 1352) / (before.banded.px + 20)).toFixed(1)}% of that`,
+      ]),
+    )
+  }
 
   const walk = 'walk' as const
   const box = 'box' as const
@@ -110,6 +133,7 @@ for (const { id, title, file } of windows) {
     { threshold: 5000, cluster: false, inversions: walk },
     { threshold: 50, cluster: true, inversions: walk },
     { threshold: 1000, cluster: true, inversions: walk },
+    { threshold: 5000, cluster: true, inversions: walk },
     { threshold: 50, cluster: false, inversions: box },
     { threshold: 1000, cluster: false, inversions: box },
     { threshold: 5000, cluster: false, inversions: box },
@@ -138,8 +162,67 @@ for (const { id, title, file } of windows) {
     if (fold.folded && id === 'chr16-inversion') {
       expectBranch(id, fold, 'inversion', 16_000, 439)
     }
+    if (fold.folded && !cluster && inversions === 'walk') {
+      for (const [
+        window,
+        at,
+        kind,
+        refStart,
+        refEnd,
+        carriers,
+      ] of expectedBranches) {
+        if (window === id && at === threshold) {
+          const found = fold.branches.find(
+            b =>
+              b.kind === kind && b.refStart === refStart && b.refEnd === refEnd,
+          )
+          const line = `${id} at ${threshold} bp, ${refStart}-${refEnd}: ${found ? branchLabel(found, fold.haplotypes) : `no ${kind}`}`
+          invariants.push(line)
+          if (found?.haplotypes !== carriers) {
+            failures.push(`${line}; expected ${carriers} haplotypes`)
+          }
+        }
+      }
+    }
+    if (fold.folded && cluster && threshold === drawnAt) {
+      const repeats = fold.branches.filter(b => b.copies !== undefined)
+      invariants.push(
+        ...repeats
+          .sort((a, b) => b.haplotypes - a.haplotypes)
+          .slice(0, 6)
+          .map(
+            b =>
+              `${id} at ${label}, ${b.refStart}-${b.refEnd}: ${branchLabel(b, fold.haplotypes)}; ${b.copies!.map(c => `${c.haplotypes} pass ${c.passes} times${c.reversed > 0 ? ` (${c.reversed} reversed)` : ''}`).join(', ')}`,
+          ),
+      )
+      const shown = mostCarried(fold, 8)
+      const basesPerPixel = Math.max(
+        1,
+        Math.ceil(
+          shown.nodes.reduce((sum, node) => sum + node.sequenceLength, 0) /
+            1100,
+        ),
+      )
+      picture(
+        `${id}-fold-${threshold}-clustered`,
+        drawTubeMap(
+          layout(shown.nodes, shown.tracks, {
+            nodeWidthOption: 'small',
+            basesPerPixel,
+            freqWidth: 'log',
+          }),
+          [
+            `${title}: folded at ${label}`,
+            `${count(fold.nodes.length)} nodes and ${count(fold.tracks.length)} distinct walks of ${haplotypes} walks; the reference and the ${shown.tracks.length - 1} most carried walks are drawn, with their ${shown.branches.length} of ${fold.branches.length} kept branches; ${basesPerPixel} bp to the px`,
+          ],
+          shown,
+          true,
+        ),
+      )
+    }
     const drawn =
       fold.folded &&
+      drawnAt === undefined &&
       threshold !== 5000 &&
       (!cluster || id === 'chr1-deletion') &&
       (inversions === 'walk' ||
