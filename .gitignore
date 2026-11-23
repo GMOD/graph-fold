@@ -10,3 +10,4 @@ esm
 .claude/settings.local.json
 .claude/worktrees/
 data
+docs/*-before.svg
