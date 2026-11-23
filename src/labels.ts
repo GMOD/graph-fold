@@ -36,11 +36,15 @@ export function trackLabel(freq: number, names: string[]) {
 
 export function variationLabel({ freq, variation }: FoldedTrackFields) {
   const { walks, foldedAwayBp } = variation
+  const least = bpLabel(foldedAwayBp.min)
+  const most = bpLabel(foldedAwayBp.max)
   const hidden =
     foldedAwayBp.max === 0
       ? 'nothing folded away'
       : foldedAwayBp.min === foldedAwayBp.max
-        ? `${bpLabel(foldedAwayBp.max)} folded away in each`
-        : `${bpLabel(foldedAwayBp.min)} to ${bpLabel(foldedAwayBp.max)} folded away in each`
+        ? `${most} folded away in each`
+        : least === most
+          ? `about ${most} folded away in each`
+          : `${least} to ${most} folded away in each`
   return `${plural(freq, 'haplotype')} on ${plural(walks, 'distinct walk')}, ${hidden}`
 }

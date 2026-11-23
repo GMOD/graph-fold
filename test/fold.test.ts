@@ -470,6 +470,18 @@ describe('what a tube stands for', () => {
     ])
   })
 
+  test('a spread whose ends round alike reads as one size', () => {
+    const result = fold(
+      { a: 100, b: 2900, c: 2910, d: 100 },
+      ['a d', 'a b d', 'a c d'],
+      { threshold: 5000 },
+    )
+    expect(result.tracks.map(variationLabel)).toEqual([
+      '1 haplotype on 1 distinct walk, nothing folded away',
+      '2 haplotypes on 2 distinct walks, about 2.9 kb folded away in each',
+    ])
+  })
+
   test('an inversion the window cuts through says so in its label', () => {
     const result = fold({ a: 6000, b: 20, c: 30 }, ['a b c', 'a -c -b'], {
       threshold: 5000,
