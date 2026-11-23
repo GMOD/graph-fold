@@ -1,10 +1,12 @@
+import { haplotypeCounter } from './haplotypes.ts'
+
 import type { FoldResult, Folded, InputNode, InputTrack } from './types.ts'
 
 function nodeName(step: string) {
   return step.startsWith('-') ? step.slice(1) : step
 }
 
-function haplotypes(list: { freq?: number }[]) {
+function records(list: { freq?: number }[]) {
   return list.reduce((sum, track) => sum + (track.freq ?? 1), 0)
 }
 
@@ -64,18 +66,47 @@ function foldedProblems(
     })
   }
 
+  const haplotypesIn = haplotypeCounter(tracks)
+  const walksOn = result.tracks.map((): number[] => [])
+  result.walks.forEach((walk, i) => {
+    walksOn[walk.track]?.push(i)
+  })
+  const haplotypesOn = (ids: number[]) =>
+    haplotypesIn(ids.flatMap(id => walksOn[id] ?? []))
   const counts = [
-    ['the tracks hold', haplotypes(result.tracks)],
-    ['the walks hold', haplotypes(result.walks)],
-    ['the result counts', result.haplotypes],
+    [
+      'walk records',
+      'the tracks hold',
+      records(tracks),
+      records(result.tracks),
+    ],
+    ['walk records', 'the walks hold', records(tracks), records(result.walks)],
+    [
+      'haplotypes',
+      'the tracks hold',
+      haplotypesIn(tracks.keys()),
+      haplotypesOn(result.tracks.map(track => track.id)),
+    ],
+    [
+      'haplotypes',
+      'the result counts',
+      haplotypesIn(tracks.keys()),
+      result.haplotypes,
+    ],
   ] as const
-  for (const [what, count] of counts) {
-    if (count !== haplotypes(tracks)) {
-      problems.push(
-        `${haplotypes(tracks)} haplotypes went in and ${what} ${count}`,
-      )
+  for (const [unit, what, went, count] of counts) {
+    if (count !== went) {
+      problems.push(`${went} ${unit} went in and ${what} ${count}`)
     }
   }
+  result.tracks.forEach((track, id) => {
+    const held = haplotypesOn([id])
+    if (track.haplotypes !== held) {
+      problems.push(
+        `${track.name} counts ${track.haplotypes} haplotypes and its walks are ${held}`,
+      )
+    }
+  })
   if (result.walks.length !== tracks.length) {
     problems.push(
       `${tracks.length} tracks went in and ${result.walks.length} walks came out`,
@@ -113,18 +144,17 @@ function foldedProblems(
         `${branch.description} at ${branch.refStart} names no track, or one that is not there`,
       )
     }
-    const carried = haplotypes(
-      branch.tracks.flatMap(id => result.tracks[id] ?? []),
-    )
+    const carried = haplotypesOn(branch.tracks)
     if (branch.haplotypes > carried) {
       problems.push(
         `${branch.description} at ${branch.refStart} counts ${branch.haplotypes} haplotypes and its tracks hold ${carried}`,
       )
     }
-    const copied = haplotypes(
-      (branch.copies ?? []).map(({ haplotypes: freq }) => ({ freq })),
+    const copied = (branch.copies ?? []).reduce(
+      (sum, copy) => sum + copy.haplotypes,
+      0,
     )
-    if (branch.copies !== undefined && copied !== branch.haplotypes) {
+    if (branch.copies !== undefined && copied < branch.haplotypes) {
       problems.push(
         `${branch.description} at ${branch.refStart} counts ${branch.haplotypes} haplotypes and its copies ${copied}`,
       )

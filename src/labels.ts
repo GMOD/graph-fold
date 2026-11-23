@@ -28,19 +28,22 @@ export function branchLabel(branch: Branch, haplotypes: number) {
   return `${branch.description} ${size}${lengths}, ${branch.haplotypes} of ${haplotypes}${cut}`
 }
 
-export function trackLabel(freq: number, names: string[]) {
-  return freq === 1 && names[0] !== undefined
+export function trackLabel(haplotypes: number, names: string[]) {
+  return haplotypes === 1 && names[0] !== undefined
     ? names[0]
-    : plural(freq, 'haplotype')
+    : plural(haplotypes, 'haplotype')
 }
 
-export function referenceLabel(name: string, freq: number) {
-  return freq > 1
-    ? `${name} and ${plural(freq - 1, 'identical haplotype')}`
+export function referenceLabel(name: string, haplotypes: number) {
+  return haplotypes > 1
+    ? `${name} and ${plural(haplotypes - 1, 'identical haplotype')}`
     : name
 }
 
-export function variationLabel({ freq, variation }: FoldedTrackFields) {
+export function variationLabel({
+  haplotypes,
+  variation,
+}: Pick<FoldedTrackFields, 'haplotypes' | 'variation'>) {
   const { walks, foldedAwayBp } = variation
   const least = bpLabel(foldedAwayBp.min)
   const most = bpLabel(foldedAwayBp.max)
@@ -52,5 +55,5 @@ export function variationLabel({ freq, variation }: FoldedTrackFields) {
         : least === most
           ? `about ${most} folded away in each`
           : `${least} to ${most} folded away in each`
-  return `${plural(freq, 'haplotype')} on ${plural(walks, 'distinct walk')}, ${hidden}`
+  return `${plural(haplotypes, 'haplotype')} on ${plural(walks, 'distinct walk')}, ${hidden}`
 }

@@ -54,9 +54,11 @@ if (fold.folded) {
 
 - `nodes` are `{ name, sequenceLength }`; a node with `seq` and no
   `sequenceLength` takes its length from `seq`
-- `tracks` are `{ name, sequence, freq, indexOfFirstBase, sourceTrackID }`,
-  where `sequence` lists node names with a `-` prefix for a reversed step and
-  `freq` counts the haplotypes that take the walk, 1 when absent. Any other
+- `tracks` are
+  `{ name, sequence, freq, haplotype, indexOfFirstBase, sourceTrackID }`, where
+  `sequence` lists node names with a `-` prefix for a reversed step, `freq`
+  counts the haplotypes that take the walk, 1 when absent, and `haplotype` names
+  the haplotype the walk is part of, see [Fragments](#fragments). Any other
   field a track has comes back on the folded track
 - The call goes between building the nodes and tracks and laying them out:
   `fold.nodes` and `fold.tracks` are `layoutTubeMap` input whether the window
@@ -74,6 +76,37 @@ if (fold.folded) {
 | `reference`         | 0       | Index of the reference track                                                                          |
 | `referenceRevisits` | none    | How many nodes the reference passes more than once in the whole graph, see [the gate](#the-gate)      |
 | `inversions`        | 'walk'  | `'walk'` steps the reference node reversed; `'box'` steps a copy of it, see [Inversions](#inversions) |
+
+## Fragments
+
+A haplotype can come into a window as several walks: two contigs of one
+assembly, or two pieces of one contig. In chr3:162,650,000-163,050,000 HG03654#1
+is two walks, so the window has 465 walks of 464 haplotypes. Give each walk its
+haplotype and the fold counts it once:
+
+```ts
+const named = tracks.map(t => ({
+  ...t,
+  haplotype: t.name.split('#', 2).join('#'),
+}))
+```
+
+- Walks that share a `haplotype` are one haplotype, counted once, as the largest
+  `freq` among them. A walk without one is a haplotype of its own, `freq` of
+  them, so a caller that passes none gets the counts it always had
+- The line above takes `sample#hap` from a PanSN name `sample#hap#contig` and
+  leaves a name with fewer fields as it is. The fold reads no names itself,
+  since not every name is PanSN
+- A folded track's `freq` is the walks it holds, each by its `freq`, and its
+  `haplotypes` the distinct haplotypes they are. Labels print `haplotypes`
+- A haplotype whose walks fold to two tracks counts once on each, so the tracks'
+  `haplotypes` can add up to more than the fold's `haplotypes`, which counts it
+  once. A branch counts each haplotype once over all its tracks
+- A haplotype with several walks on one track differs from it by what they
+  differ by together, in `variation`
+- Filled from the names, the chr3 window counts 464 haplotypes, and its
+  deletions of 114 kb, 21.9 kb and 6.2 kb 239, 88 and 209 of 464. Unfilled, it
+  counts 465
 
 ## The rule
 
@@ -109,14 +142,15 @@ if (fold.folded) {
 - The backbone is cut at every breakpoint a kept branch or run uses, and each
   piece between two cuts is one merged node
 - Walks that fold to the same steps become one track whose `freq` is their sum
+  and whose `haplotypes` counts their distinct haplotypes
 
 ## Result
 
 `foldGraph` returns a `FoldResult`, which is `Folded` or `Unfolded` by its
 `folded`. Both have:
 
-- `threshold`, and `haplotypes`, the summed `freq` of every input track, the
-  reference among them
+- `threshold`, and `haplotypes`, the distinct haplotypes of every input track,
+  the reference among them: the summed `freq` where no track has a `haplotype`
 - `nodes` and `tracks`, `layoutTubeMap` input
 - `members`, `branches` and `walks`, empty when `folded` is false
 
@@ -134,8 +168,11 @@ if (fold.folded) {
   first input walk's own fields, `sourceTrackID` among them, with these set:
   - `id`: its index in `tracks`
   - `name`: the first walk's name, and `names`: every walk's
-  - `label`: the one walk's name, or `439 haplotypes`
-  - `sequence` and `freq`
+  - `label`: the one walk's name, the haplotype where several walks of one
+    haplotype share the track, or `439 haplotypes`
+  - `sequence`
+  - `freq`: the walks it holds, each by its own `freq`, and `haplotypes`: the
+    distinct haplotypes they are
   - `sourceTrackID`: its `id` when the input walk had none
   - `variation`: what the track hides, see
     [What a tube hides](#what-a-tube-hides)
@@ -149,9 +186,9 @@ if (fold.folded) {
     `reference walked out of order`, `walk starts inside the window`, and so on
   - `length`, `insertedBp`, `deletedBp`, `refStart`, `refEnd`: positions are on
     the reference, counted from the reference track's `indexOfFirstBase`
-  - `haplotypes`: the summed `freq` of the walks that carry it, each walk once
-    however often it takes the branch, and `tracks`: the `id` of each folded
-    track that does
+  - `haplotypes`: the distinct haplotypes of the walks that carry it, each once
+    however many of its walks take the branch and however often, and `tracks`:
+    the `id` of each folded track that does
   - `copies`, only on a repeat: one `{ passes, reversed, haplotypes, tracks }`
     for each number of passes its carriers make, `reversed` being how many of
     the passes run against the walk's own direction. The track's `sequence`
@@ -185,15 +222,16 @@ Every renderer should print the same text, so the package makes it:
 - `variationLabel(track)`:
   `439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`
 - `bpLabel(bp)`: `584 bp`, `45.5 kb`
-- `track.label`, or `trackLabel(freq, names)`
+- `track.label`, or `trackLabel(haplotypes, names)`
 - The reference's `label` is its name, followed by `and 1 identical haplotype`
-  where its track came with a `freq` over 1; `referenceLabel(name, freq)` gives
-  the same text
+  where its track came with a `freq` over 1; `referenceLabel(name, haplotypes)`
+  gives the same text
+- Every count a label prints is of haplotypes, never of walks
 
 `foldProblems(nodes, tracks, result)` lists every broken invariant: a step on a
 node that is not there, a jump no branch reports, a haplotype count that
-changed, a walk whose bp do not reconcile, a branch that counts more haplotypes
-than its tracks hold.
+changed, a track whose `haplotypes` is not its walks', a walk whose bp do not
+reconcile, a branch that counts more haplotypes than its tracks hold.
 
 ## What a tube hides
 
@@ -412,9 +450,13 @@ carriers, by haplotype name, of the departures over its breakpoints.
   reports no inversion for either, and draws both reversed over the merged
   nodes. A walk whose two ends run opposite ways takes the direction most of its
   reference runs
-- **Fragments are walks.** A haplotype in two tracks counts twice in
-  `haplotypes` and in a branch both fragments carry. The AMY1 window has 490
-  walks under 464 haplotype names, the reference among them
+- **Fragments are walks unless the caller names their haplotype.** Without
+  `haplotype`, a haplotype in two walks counts twice in `haplotypes` and in a
+  branch both walks carry. The AMY1 window has 490 walks under 464 haplotype
+  names, the reference among them, and the windows above are counted by walk
+- **Passes are counted walk by walk.** A haplotype whose walks pass a repeat a
+  different number of times counts under each of their entries in `copies`, so
+  those can add up to more than the branch's `haplotypes`
 - **A graph whose reference revisits a node is never folded,** however far the
   revisit is from the window. No pggb window of a human graph was run
 

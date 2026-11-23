@@ -8,6 +8,7 @@ export interface InputTrack {
   name?: string
   sequence: string[]
   freq?: number
+  haplotype?: string
   indexOfFirstBase?: number
   sourceTrackID?: number
 }
@@ -57,6 +58,7 @@ export interface FoldedTrackFields {
   label: string
   sequence: string[]
   freq: number
+  haplotypes: number
   sourceTrackID: number
   names: string[]
   variation: TrackVariation

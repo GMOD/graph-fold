@@ -1102,3 +1102,181 @@ describe('what a track hides', () => {
     })
   })
 })
+
+describe('fragments of one haplotype', () => {
+  function foldFragments(
+    lengths: Record<string, number>,
+    walks: [name: string, walk: string, haplotype?: string][],
+    options: FoldOptions,
+  ) {
+    const nodes: InputNode[] = Object.entries(lengths).map(
+      ([name, sequenceLength]) => ({ name, sequenceLength }),
+    )
+    const tracks: InputTrack[] = walks.map(([name, walk, haplotype]) => ({
+      name,
+      sequence: walk.split(' '),
+      ...(haplotype === undefined ? {} : { haplotype }),
+    }))
+    const result = foldGraph(nodes, tracks, options)
+    expect(foldProblems(nodes, tracks, result)).toEqual([])
+    if (!result.folded) {
+      throw new Error(result.reason)
+    }
+    return result
+  }
+
+  test('two fragments on one route are one haplotype on two walk records', () => {
+    const result = foldFragments(
+      { a: 500, b: 500, c: 5000, d: 500, s: 5, t: 5 },
+      [
+        ['ref', 'a b c d'],
+        ['S#1#contigA', 'a b s d', 'S#1'],
+        ['S#1#contigB', 'a b t d', 'S#1'],
+        ['T#1#contigA', 'a b c d', 'T#1'],
+      ],
+      { threshold: 1000 },
+    )
+    expect(result.haplotypes).toBe(3)
+    expect(
+      result.tracks.map(t => [t.label, t.freq, t.haplotypes, t.names]),
+    ).toEqual([
+      ['ref', 1, 1, ['ref']],
+      ['S#1', 2, 1, ['S#1#contigA', 'S#1#contigB']],
+      ['T#1#contigA', 1, 1, ['T#1#contigA']],
+    ])
+    expect(result.branches.map(b => branchLabel(b, result.haplotypes))).toEqual(
+      ['deletion 5 kb, 1 of 3'],
+    )
+    expect(variationLabel(result.tracks[1]!)).toBe(
+      '1 haplotype on 2 distinct walks, 10 bp folded away in each',
+    )
+    expect(result.walks.map(w => w.freq)).toEqual([1, 1, 1, 1])
+  })
+
+  test('two fragments on different routes count on each track and once in the total', () => {
+    const result = foldFragments(
+      { a: 500, b: 500, c: 5000, d: 500, e: 2000 },
+      [
+        ['ref', 'a b c d e'],
+        ['S#1#contigA', 'a b d', 'S#1'],
+        ['S#1#contigB', 'd e', 'S#1'],
+        ['T#1#contigA', 'a b d e', 'T#1'],
+      ],
+      { threshold: 1000 },
+    )
+    expect(result.haplotypes).toBe(3)
+    expect(result.tracks.map(t => [t.label, t.haplotypes])).toEqual([
+      ['ref', 1],
+      ['S#1#contigA', 1],
+      ['S#1#contigB', 1],
+      ['T#1#contigA', 1],
+    ])
+    const deletion = result.branches.find(b => b.kind === 'deletion')!
+    expect(branchLabel(deletion, result.haplotypes)).toBe(
+      'deletion 5 kb, 2 of 3',
+    )
+    expect(deletion.tracks).toEqual([1, 3])
+  })
+
+  test('a fragment that alone carries a branch counts its haplotype once', () => {
+    const result = foldFragments(
+      { a: 500, b: 500, x: 2000 },
+      [
+        ['ref', 'a b'],
+        ['S#1#contigA', 'a x b', 'S#1'],
+        ['S#1#contigB', 'a b', 'S#1'],
+        ['T#1#contigA', 'a b', 'T#1'],
+      ],
+      { threshold: 50 },
+    )
+    expect(result.branches).toMatchObject([
+      { kind: 'insertion', haplotypes: 1, tracks: [1] },
+    ])
+    expect(branchLabel(result.branches[0]!, result.haplotypes)).toBe(
+      'insertion 2 kb, 1 of 3',
+    )
+    expect(result.tracks.map(t => [t.label, t.freq, t.haplotypes])).toEqual([
+      ['ref', 1, 1],
+      ['S#1#contigA', 1, 1],
+      ['2 haplotypes', 2, 2],
+    ])
+  })
+
+  test('without the field each walk record is a haplotype, whatever its name', () => {
+    const result = foldFragments(
+      { a: 500, b: 500, c: 5000, d: 500 },
+      [
+        ['ref', 'a b c d'],
+        ['S#1#contigA', 'a b d'],
+        ['S#1#contigB', 'a b d'],
+      ],
+      { threshold: 1000 },
+    )
+    expect(result.haplotypes).toBe(3)
+    expect(result.tracks[1]).toMatchObject({
+      label: '2 haplotypes',
+      freq: 2,
+      haplotypes: 2,
+    })
+    expect(branchLabel(result.branches[0]!, result.haplotypes)).toBe(
+      'deletion 5 kb, 2 of 3',
+    )
+  })
+
+  test('a cluster counts haplotypes, and the allele most haplotypes carry is drawn', () => {
+    const result = foldFragments(
+      { a: 500, b: 500, x: 1000, y: 1010 },
+      [
+        ['ref', 'a b'],
+        ['S#1#contigA', 'a x b', 'S#1'],
+        ['S#1#contigB', 'a x b', 'S#1'],
+        ['S#1#contigC', 'a x b', 'S#1'],
+        ['T#1#contigA', 'a y b', 'T#1'],
+        ['U#1#contigA', 'a y b', 'U#1'],
+      ],
+      { threshold: 50, cluster: true },
+    )
+    expect(result.haplotypes).toBe(4)
+    expect(sequences(result)).toEqual(['a b', 'a ins:a:1010 b'])
+    expect(result.branches).toMatchObject([
+      {
+        insertedBp: 1010,
+        haplotypes: 3,
+        cluster: { members: 2, haplotypes: 3 },
+        alleles: [
+          { insertedBp: 1010, haplotypes: 2 },
+          { insertedBp: 1000, haplotypes: 1 },
+        ],
+      },
+    ])
+    expect(result.tracks[1]).toMatchObject({ freq: 5, haplotypes: 3 })
+    expect(variationLabel(result.tracks[1]!)).toBe(
+      '3 haplotypes on 2 distinct walks, 0 bp to 30 bp folded away in each',
+    )
+  })
+
+  test('foldProblems finds a track whose haplotype count is not its walks', () => {
+    const nodes = [
+      { name: 'a', sequenceLength: 500 },
+      { name: 'b', sequenceLength: 500 },
+    ]
+    const tracks = [
+      { name: 'ref', sequence: ['a', 'b'] },
+      { name: 'S#1#contigA', sequence: ['a', 'b'], haplotype: 'S#1' },
+      { name: 'S#1#contigB', sequence: ['a', 'b'], haplotype: 'S#1' },
+    ]
+    const result = foldGraph(nodes, tracks, { threshold: 50 })
+    expect(result.folded && result.tracks[1]!.haplotypes).toBe(1)
+    const miscounted =
+      result.folded &&
+      foldProblems(nodes, tracks, {
+        ...result,
+        haplotypes: 3,
+        tracks: result.tracks.map(t => ({ ...t, haplotypes: t.freq })),
+      })
+    expect(miscounted).toEqual([
+      '2 haplotypes went in and the result counts 3',
+      'S#1#contigA counts 2 haplotypes and its walks are 1',
+    ])
+  })
+})

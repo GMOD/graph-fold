@@ -1,5 +1,6 @@
 import { chain, runBounds } from './chain.ts'
 import { clusterLeaders, siteKey } from './cluster.ts'
+import { haplotypeCounter, haplotypeKey } from './haplotypes.ts'
 import { referenceLabel, trackLabel } from './labels.ts'
 
 import type { Anchor } from './chain.ts'
@@ -22,7 +23,7 @@ import type {
   Unfolded,
 } from './types.ts'
 
-type BranchDraft = Omit<Branch, 'tracks' | 'anchored'>
+type BranchDraft = Omit<Branch, 'tracks' | 'anchored' | 'haplotypes'>
 
 interface Detour extends Site {
   pair: number
@@ -47,8 +48,11 @@ interface Visit {
 }
 
 interface BranchTally {
-  haplotypes: number
-  alleles: Map<string, BranchAllele>
+  walks: Set<number>
+  alleles: Map<
+    string,
+    { allele: Omit<BranchAllele, 'haplotypes'>; walks: Set<number> }
+  >
 }
 
 interface Passes {
@@ -147,7 +151,7 @@ function variationOf(
 const noVariation = variationOf([{ insertedBp: 0, skippedBp: 0, freq: 1 }])
 
 function haplotypesOf(tracks: InputTrack[]) {
-  return tracks.reduce((sum, track) => sum + (track.freq ?? 1), 0)
+  return haplotypeCounter(tracks)(tracks.keys())
 }
 
 function unfolded<N extends InputNode, T extends InputTrack>(
@@ -207,6 +211,7 @@ function foldWindow<T extends InputTrack>(
   tolerance: number,
   boxed: boolean,
 ) {
+  const haplotypesIn = haplotypeCounter(tracks)
   const lengths = new Map(nodes.map(n => [n.name, lengthOfNode(n)]))
   const lengthOf = (name: string) => lengths.get(name) ?? 0
   const refTrack = tracks[reference]!
@@ -267,17 +272,22 @@ function foldWindow<T extends InputTrack>(
       : [{ index, name, freq: track.freq ?? 1, steps, prefix, runs }]
   })
 
-  const siteTally = new Map<string, { site: Site; haplotypes: number }>()
-  for (const { runs, freq } of walks) {
+  const siteWalks = new Map<string, { site: Site; walks: Set<number> }>()
+  for (const { runs, index } of walks) {
     for (const { detours } of runs) {
       for (const { left, right, inserted } of detours) {
         const site = { left, right, inserted }
-        const seen = siteTally.get(siteKey(site)) ?? { site, haplotypes: 0 }
-        seen.haplotypes += freq
-        siteTally.set(siteKey(site), seen)
+        const seen = siteWalks.get(siteKey(site)) ?? { site, walks: new Set() }
+        siteWalks.set(siteKey(site), { site, walks: seen.walks.add(index) })
       }
     }
   }
+  const siteTally = new Map(
+    [...siteWalks].map(([key, { site, walks: carried }]) => [
+      key,
+      { site, haplotypes: haplotypesIn(carried) },
+    ]),
+  )
   const leaderOf = cluster
     ? clusterLeaders(siteTally, offsets, tolerance)
     : new Map<string, Site>()
@@ -407,16 +417,11 @@ function foldWindow<T extends InputTrack>(
   const tallies = new Map<string, BranchTally>()
   const carry = (
     key: string,
-    walk: { freq: number; index: number },
+    walk: { index: number },
     branch: () => BranchDraft,
   ) => {
-    const seen = branches.get(key) ?? branch()
-    const walks = carriers.get(key) ?? new Set()
-    if (!walks.has(walk.index)) {
-      seen.haplotypes += walk.freq
-    }
-    branches.set(key, seen)
-    carriers.set(key, walks.add(walk.index))
+    branches.set(key, branches.get(key) ?? branch())
+    carriers.set(key, (carriers.get(key) ?? new Set()).add(walk.index))
   }
   const repeats = new Map<string, Map<number, Passes>>()
   const piecesOf = (run: ChainedRun & { drawn: Detour[] }) => {
@@ -443,7 +448,7 @@ function foldWindow<T extends InputTrack>(
       : []
 
   const foldedWalks = drawn.map(walk => {
-    const { steps, prefix, runs, freq } = walk
+    const { steps, prefix, runs } = walk
     const visits: Visit[] = []
     const absorb = (visit: Visit, from: number, to: number) => {
       const bp = prefix[to]! - prefix[from]!
@@ -491,7 +496,6 @@ function foldWindow<T extends InputTrack>(
           deletedBp: 0,
           refStart: refPos(boundary),
           refEnd: refPos(boundary),
-          haplotypes: 0,
           nodes: [node],
         }))
       } else {
@@ -525,7 +529,6 @@ function foldWindow<T extends InputTrack>(
           deletedBp: 0,
           refStart: refPos(boundary),
           refEnd: refPos(boundary),
-          haplotypes: 0,
           nodes: [],
         }))
       }
@@ -541,7 +544,6 @@ function foldWindow<T extends InputTrack>(
         }
       }
     }
-    const tallied = new Set<string>()
     const reportDetour = (drawnSite: Site, original: Site, node?: string) => {
       const key = `detour:${siteKey(drawnSite)}`
       const deletedBp = refBp(drawnSite.left, drawnSite.right)
@@ -571,27 +573,29 @@ function foldWindow<T extends InputTrack>(
         deletedBp,
         refStart: refPos(drawnSite.left),
         refEnd: refPos(drawnSite.right),
-        haplotypes: 0,
         nodes: node === undefined ? [] : [node],
         from: segments[segmentOf[drawnSite.left - 1]!]!.name,
         to: segments[segmentOf[drawnSite.right]!]!.name,
       }))
-      const allele = `${key}|${siteKey(original)}`
-      if (!tallied.has(allele)) {
-        const tally = tallies.get(key) ?? { haplotypes: 0, alleles: new Map() }
-        const seen = tally.alleles.get(siteKey(original)) ?? {
+      const tally = tallies.get(key) ?? {
+        walks: new Set(),
+        alleles: new Map(),
+      }
+      const seen = tally.alleles.get(siteKey(original)) ?? {
+        allele: {
           refStart: refPos(original.left),
           refEnd: refPos(original.right),
           insertedBp: original.inserted,
           deletedBp: refBp(original.left, original.right),
-          haplotypes: 0,
-        }
-        seen.haplotypes += freq
-        tally.haplotypes += tallied.has(key) ? 0 : freq
-        tally.alleles.set(siteKey(original), seen)
-        tallies.set(key, tally)
-        tallied.add(allele).add(key)
+        },
+        walks: new Set(),
       }
+      tally.walks.add(walk.index)
+      tally.alleles.set(siteKey(original), {
+        ...seen,
+        walks: seen.walks.add(walk.index),
+      })
+      tallies.set(key, tally)
     }
 
     for (const stretch of stretchesOf(
@@ -618,7 +622,6 @@ function foldWindow<T extends InputTrack>(
           deletedBp: 0,
           refStart: refPos(from),
           refEnd: refPos(to),
-          haplotypes: 0,
           nodes:
             boxed && walked.against > 0
               ? [...names, ...names.map(invertedCopy)]
@@ -687,7 +690,6 @@ function foldWindow<T extends InputTrack>(
               deletedBp: 0,
               refStart: refPos(from),
               refEnd: refPos(to),
-              haplotypes: 0,
               nodes: segmentNames(from, to),
             }))
           }
@@ -711,7 +713,6 @@ function foldWindow<T extends InputTrack>(
           deletedBp: 0,
           refStart: refPos(start),
           refEnd: refPos(end),
-          haplotypes: 0,
           nodes: boxed
             ? segmentNames(start, end).map(invertedCopy)
             : segmentNames(start, end),
@@ -850,7 +851,12 @@ function foldWindow<T extends InputTrack>(
 
   const clusterOf = (key: string) => {
     const tally = tallies.get(key)
-    const alleles = [...(tally?.alleles.values() ?? [])]
+    const alleles = [...(tally?.alleles.values() ?? [])].map(
+      ({ allele, walks: carried }) => ({
+        ...allele,
+        haplotypes: haplotypesIn(carried),
+      }),
+    )
     const sizes = alleles.map(a => Math.max(a.insertedBp, a.deletedBp))
     const info: ClusterInfo | undefined =
       tally !== undefined && alleles.length > 1
@@ -858,7 +864,7 @@ function foldWindow<T extends InputTrack>(
             members: alleles.length,
             minLength: Math.min(...sizes),
             maxLength: Math.max(...sizes),
-            haplotypes: tally.haplotypes,
+            haplotypes: haplotypesIn(tally.walks),
           }
         : undefined
     return info === undefined
@@ -879,13 +885,15 @@ function foldWindow<T extends InputTrack>(
     groups.set(key, [...(groups.get(key) ?? []), w])
   })
   const trackOfWalk = new Map<number, number>()
+  const refHaplotypes = haplotypesIn([reference])
   const refFolded: FoldedTrack<T> = {
     ...refTrack,
     id: 0,
     name: refName,
-    label: referenceLabel(refName, refTrack.freq ?? 1),
+    label: referenceLabel(refName, refHaplotypes),
     sequence: segments.map(segment => segment.name),
     freq: refTrack.freq ?? 1,
+    haplotypes: refHaplotypes,
     sourceTrackID: refTrack.sourceTrackID ?? 0,
     names: [refName],
     variation: noVariation,
@@ -898,22 +906,47 @@ function foldWindow<T extends InputTrack>(
       trackOfWalk.set(walk.index, id)
     }
     const freq = held.reduce((sum, { walk }) => sum + walk.freq, 0)
+    const haplotypes = haplotypesIn(held.map(({ walk }) => walk.index))
     const names = held.map(({ walk }) => walk.name)
+    const byHaplotype = new Map<
+      string | number,
+      { name: string; insertedBp: number; skippedBp: number; freq: number }
+    >()
+    for (const { walk, insertedBp, skippedBp } of held) {
+      const key = haplotypeKey(tracks, walk.index)
+      const seen = byHaplotype.get(key)
+      byHaplotype.set(
+        key,
+        seen === undefined
+          ? {
+              name: tracks[walk.index]!.haplotype ?? walk.name,
+              insertedBp,
+              skippedBp,
+              freq: walk.freq,
+            }
+          : {
+              ...seen,
+              insertedBp: seen.insertedBp + insertedBp,
+              skippedBp: seen.skippedBp + skippedBp,
+              freq: Math.max(seen.freq, walk.freq),
+            },
+      )
+    }
     const track: FoldedTrack<T> = {
       ...tracks[first.walk.index]!,
       id,
       name: first.walk.name,
-      label: trackLabel(freq, names),
+      label: trackLabel(
+        haplotypes,
+        held.length === 1 ? names : [...byHaplotype.values()].map(h => h.name),
+      ),
       sequence: first.sequence,
       freq,
+      haplotypes,
       sourceTrackID: tracks[first.walk.index]!.sourceTrackID ?? id,
       names,
       variation: variationOf(
-        held.map(h => ({
-          insertedBp: h.insertedBp,
-          skippedBp: h.skippedBp,
-          freq: h.walk.freq,
-        })),
+        [...byHaplotype.values()],
         new Set(held.map(h => tracks[h.walk.index]!.sequence.join())).size,
       ),
     }
@@ -944,25 +977,29 @@ function foldWindow<T extends InputTrack>(
   )
   const copiesOf = (key: string) => {
     const walked = [...(repeats.get(key) ?? [])]
-    const counts = new Map<string, BranchCopies>()
-    for (const [index, { total, against }] of walked) {
-      const count = counts.get(`${total}:${against}`) ?? {
-        passes: total,
-        reversed: against,
-        haplotypes: 0,
-        tracks: [],
-      }
-      const track = trackOfWalk.get(index) ?? 0
-      count.haplotypes += tracks[index]!.freq ?? 1
-      count.tracks = count.tracks.includes(track)
-        ? count.tracks
-        : [...count.tracks, track].sort((a, b) => a - b)
-      counts.set(`${total}:${against}`, count)
+    const counts = new Map<string, { passes: Passes; walks: number[] }>()
+    for (const [index, passes] of walked) {
+      const key = `${passes.total}:${passes.against}`
+      counts.set(key, {
+        passes,
+        walks: [...(counts.get(key)?.walks ?? []), index],
+      })
     }
+    const copies = [...counts.values()].map(({ passes, walks: held }) => {
+      const count: BranchCopies = {
+        passes: passes.total,
+        reversed: passes.against,
+        haplotypes: haplotypesIn(held),
+        tracks: [...new Set(held.map(w => trackOfWalk.get(w) ?? 0))].sort(
+          (a, b) => a - b,
+        ),
+      }
+      return count
+    })
     return walked.length > 0
       ? {
           description: repeatDescription(walked.map(([, p]) => p)),
-          copies: [...counts.values()].sort(
+          copies: copies.sort(
             (a, b) => a.passes - b.passes || a.reversed - b.reversed,
           ),
         }
@@ -980,6 +1017,7 @@ function foldWindow<T extends InputTrack>(
     }
     const branch: Branch = {
       ...draft,
+      haplotypes: haplotypesIn(carriers.get(key) ?? []),
       ...clustered,
       ...copiesOf(key),
       tracks: [
