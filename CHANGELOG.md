@@ -1,3 +1,9 @@
+## [0.1.2](https://github.com/GMOD/graph-fold/compare/v0.1.1...v0.1.2) (2026-11-23)
+
+### Bug Fixes
+
+- The reference's label names the haplotypes identical to it where its track came with a count over one ([0585fcc](https://github.com/GMOD/graph-fold/commit/0585fcc31cfce8c8e81c2543f1bb2bab212cf2ac))
+
 ## [0.1.1](https://github.com/GMOD/graph-fold/compare/v0.1.0...v0.1.1) (2026-11-23)
 
 ### Bug Fixes
