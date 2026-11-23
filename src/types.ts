@@ -9,6 +9,7 @@ export interface InputTrack {
   sequence: string[]
   freq?: number
   indexOfFirstBase?: number
+  sourceTrackID?: number
 }
 
 export interface FoldOptions {
@@ -45,20 +46,24 @@ export interface BpSpread {
 
 export interface TrackVariation {
   walks: number
+  foldedAwayBp: BpSpread
   insertedBp: BpSpread
   skippedBp: BpSpread
 }
 
-export interface FoldedTrack {
+export interface FoldedTrackFields {
   id: number
   name: string
+  label: string
   sequence: string[]
   freq: number
   sourceTrackID: number
-  indexOfFirstBase?: number
   names: string[]
   variation: TrackVariation
 }
+
+export type FoldedTrack<T extends InputTrack = InputTrack> = T &
+  FoldedTrackFields
 
 export type BranchKind = 'insertion' | 'deletion' | 'inversion' | 'other'
 
@@ -79,6 +84,8 @@ export interface Branch {
   refStart: number
   refEnd: number
   haplotypes: number
+  tracks: number[]
+  anchored: boolean
   nodes: string[]
   from?: string
   to?: string
@@ -107,13 +114,31 @@ export interface FoldedWalk {
   steps: FoldedStep[]
 }
 
-export interface FoldResult {
-  folded: boolean
-  reason?: string
+interface FoldSummary {
   threshold: number
-  nodes: FoldedNode[]
-  tracks: FoldedTrack[]
+  haplotypes: number
   members: Record<string, string[]>
   branches: Branch[]
   walks: FoldedWalk[]
 }
+
+export interface Folded<T extends InputTrack = InputTrack> extends FoldSummary {
+  folded: true
+  nodes: FoldedNode[]
+  tracks: FoldedTrack<T>[]
+}
+
+export interface Unfolded<
+  N extends InputNode = InputNode,
+  T extends InputTrack = InputTrack,
+> extends FoldSummary {
+  folded: false
+  reason: string
+  nodes: N[]
+  tracks: T[]
+}
+
+export type FoldResult<
+  N extends InputNode = InputNode,
+  T extends InputTrack = InputTrack,
+> = Folded<T> | Unfolded<N, T>

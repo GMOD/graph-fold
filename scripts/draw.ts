@@ -1,6 +1,7 @@
+import { bpLabel, branchLabel, variationLabel } from '../src/index.ts'
 import { curvePaths, nodeOutlinePath } from './tubemap.ts'
 
-import type { Branch, FoldResult } from '../src/index.ts'
+import type { Branch, Folded } from '../src/index.ts'
 import type { layoutTubeMap } from '@jbrowse/tubemap-core'
 
 type Layout = NonNullable<ReturnType<typeof layoutTubeMap>>
@@ -19,29 +20,12 @@ const margin = 24
 const rowHeight = 17
 const labelLimit = 14
 
-export function bpText(bp: number) {
-  return bp >= 1000
-    ? `${(bp / 1000).toFixed(bp >= 100_000 ? 0 : 1)} kb`
-    : `${bp} bp`
-}
-
-export function branchText(branch: Branch, total: number) {
-  const size =
-    branch.insertedBp > 0 && branch.deletedBp > 0
-      ? `${bpText(branch.insertedBp)} for ${bpText(branch.deletedBp)}`
-      : bpText(branch.length)
-  const cluster = branch.cluster
-    ? ` (${branch.cluster.members} lengths, ${bpText(branch.cluster.minLength)} to ${bpText(branch.cluster.maxLength)})`
-    : ''
-  return `${branch.description} ${size}${cluster}, ${branch.haplotypes} of ${total}`
-}
-
 const escapeXml = (text: string) =>
   text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 
 const nodeName = (step: string) => (step.startsWith('-') ? step.slice(1) : step)
 
-function branchesOf(sequence: string[], fold: FoldResult) {
+function branchesOf(sequence: string[], fold: Folded) {
   const names = sequence.map(nodeName)
   const stepped = new Set(names)
   const reversed = new Set(
@@ -66,7 +50,7 @@ function branchesOf(sequence: string[], fold: FoldResult) {
   )
 }
 
-function trackColors(layout: Layout, fold: FoldResult | undefined) {
+function trackColors(layout: Layout, fold: Folded | undefined) {
   return new Map(
     layout.tracks.map(track => {
       const kinds = fold
@@ -107,11 +91,7 @@ function chevrons(layout: Layout) {
     .join('')
 }
 
-function shapesSvg(
-  layout: Layout,
-  fold: FoldResult | undefined,
-  tubes: boolean,
-) {
+function shapesSvg(layout: Layout, fold: Folded | undefined, tubes: boolean) {
   const colors = trackColors(layout, fold)
   const fill = (id: number) => colors.get(id) ?? haplotypeColor
   const parts: string[] = []
@@ -188,7 +168,7 @@ function placedNodes(layout: Layout) {
   )
 }
 
-function anchors(layout: Layout, fold: FoldResult) {
+function anchors(layout: Layout, fold: Folded) {
   const nodes = placedNodes(layout)
   return fold.branches.flatMap(branch => {
     const boxes = branch.nodes.flatMap(name => {
@@ -238,7 +218,7 @@ function anchors(layout: Layout, fold: FoldResult) {
 export function drawTubeMap(
   layout: Layout,
   lines: string[],
-  fold?: FoldResult,
+  fold?: Folded,
   tubesCrossBoxes = false,
 ) {
   const tubes =
@@ -267,7 +247,7 @@ export function drawTubeMap(
     .sort((a, b) => a.x - b.x)
   const rows: number[] = []
   const labels = labelled.map(({ branch, x, y }) => {
-    const text = branchText(branch, total)
+    const text = branchLabel(branch, total)
     const width = text.length * 6.6 + 8
     const left = Math.min(
       Math.max(margin, toX(x) - width / 2),
@@ -288,14 +268,12 @@ export function drawTubeMap(
           `${tubesCrossBoxes ? 'reference dark on top; one tube per distinct folded walk, wider with more haplotypes (log scale), chevrons point the way it runs, pale where it passes a box without reading it' : 'reference dark, bands sized by haplotype share'}; a ${tubesCrossBoxes ? 'tube' : 'band'} or box takes the colour of its branch${fold.nodes.some(node => node.invertedOf !== undefined) ? '; a box of arrows pointing left is a copy of the reference box it is tied to, reversed' : ''}:`,
         ]
       : []),
-    ...tubes.map(({ folded }, i) => {
-      const { walks, insertedBp, skippedBp } = folded.variation
-      const most = Math.max(insertedBp.max, skippedBp.max)
-      return `tube ${i + 1}: ${folded.freq} ${folded.freq === 1 ? 'haplotype' : 'haplotypes'}, ${walks} distinct ${walks === 1 ? 'walk' : 'walks'}, ${most === 0 ? 'nothing folded away' : `up to ${bpText(most)} folded away in one`}`
-    }),
+    ...tubes.map(({ folded }, i) => `tube ${i + 1}: ${variationLabel(folded)}`),
     ...unanchored
       .slice(0, 4)
-      .map(branch => `no box or band of its own: ${branchText(branch, total)}`),
+      .map(
+        branch => `no box or band of its own: ${branchLabel(branch, total)}`,
+      ),
     ...(unlabelled > 0
       ? [
           `${unlabelled} more ${unlabelled === 1 ? 'branch is' : 'branches are'} drawn and not labelled`,
@@ -313,7 +291,7 @@ export function drawTubeMap(
         fold.members[node.name]?.[0] !== undefined &&
         fold.nodes.find(n => n.name === node.name)?.kind === 'reference'
           ? [
-              `<text x="${toX(node.x + node.pixelWidth / 2)}" y="${toY(node.y) - 5}" font-size="11" text-anchor="middle" fill="#444">${bpText(node.sequenceLength)}</text>`,
+              `<text x="${toX(node.x + node.pixelWidth / 2)}" y="${toY(node.y) - 5}" font-size="11" text-anchor="middle" fill="#444">${bpLabel(node.sequenceLength)}</text>`,
             ]
           : [],
       )

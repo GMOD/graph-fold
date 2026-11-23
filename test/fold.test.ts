@@ -2,7 +2,13 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, test } from 'vitest'
 
-import { foldGraph, foldProblems } from '../src/index.ts'
+import {
+  bpLabel,
+  branchLabel,
+  foldGraph,
+  foldProblems,
+  variationLabel,
+} from '../src/index.ts'
 
 import type { FoldOptions, InputNode, InputTrack } from '../src/index.ts'
 
@@ -31,10 +37,13 @@ function fold(
   const { nodes, tracks } = graph(lengths, walks, freqs)
   const result = foldGraph(nodes, tracks, options)
   expect(foldProblems(nodes, tracks, result)).toEqual([])
+  if (!result.folded) {
+    throw new Error(result.reason)
+  }
   return result
 }
 
-const sequences = (result: ReturnType<typeof foldGraph>) =>
+const sequences = (result: { tracks: { sequence: string[] }[] }) =>
   result.tracks.map(track => track.sequence.join(' '))
 
 describe('detours under the threshold', () => {
@@ -115,6 +124,8 @@ describe('detours at or over the threshold', () => {
         nodes: ['ins:a:50'],
         from: 'a',
         to: 'b',
+        tracks: [1],
+        anchored: true,
       },
     ])
   })
@@ -212,6 +223,10 @@ describe('inversions', () => {
         refEnd: 200,
         haplotypes: 9,
         nodes: ['b~d'],
+        from: 'a',
+        to: 'e',
+        tracks: [1],
+        anchored: true,
       },
     ])
     expect(result.walks[1]).toMatchObject({ insertedBp: 0, skippedBp: 0 })
@@ -289,7 +304,7 @@ describe('window edges', () => {
         description: 'walk ends inside the window',
         length: 7000,
         refStart: 200,
-        refEnd: 7200,
+        refEnd: 200,
         haplotypes: 2,
       },
     ])
@@ -305,13 +320,19 @@ describe('a reference that passes a node twice', () => {
 
   test('is returned unfolded, with the reason', () => {
     const result = foldGraph(nodes, tracks, { threshold: 50 })
-    expect(result.folded).toBe(false)
-    expect(result.reason).toMatch(
-      /passes 1 nodes of this window more than once/,
-    )
-    expect(result.nodes.map(n => n.name)).toEqual(['a', 'b', 'c', 'x'])
-    expect(sequences(result)).toEqual(['a b c b', 'a x c b'])
-    expect(result.branches).toEqual([])
+    expect(result).toMatchObject({
+      folded: false,
+      reason: expect.stringMatching(
+        /passes 1 nodes of this window more than once/,
+      ),
+      threshold: 50,
+      haplotypes: 2,
+      branches: [],
+      walks: [],
+      members: {},
+    })
+    expect(result.nodes).toBe(nodes)
+    expect(result.tracks).toBe(tracks)
     expect(foldProblems(nodes, tracks, result)).toEqual([])
   })
 
@@ -321,9 +342,13 @@ describe('a reference that passes a node twice', () => {
       threshold: 50,
       referenceRevisits: 12,
     })
-    expect(result.folded).toBe(false)
-    expect(result.reason).toMatch(/passes 12 nodes of the graph more than once/)
-    expect(sequences(result)).toEqual(['a b c', 'a x c'])
+    expect(result).toMatchObject({
+      folded: false,
+      reason: expect.stringMatching(
+        /passes 12 nodes of the graph more than once/,
+      ),
+    })
+    expect(result.tracks).toBe(single.tracks)
   })
 
   test('a header with no count leaves the window to decide', () => {
@@ -332,6 +357,161 @@ describe('a reference that passes a node twice', () => {
       foldGraph(single.nodes, single.tracks, { referenceRevisits: Number.NaN })
         .folded,
     ).toBe(true)
+  })
+})
+
+describe('input the fold cannot read', () => {
+  test('a step on a node that is not among the nodes is refused, naming the track and node', () => {
+    const { nodes, tracks } = graph({ a: 100, b: 100 }, ['a b', 'a z b'])
+    const result = foldGraph(nodes, tracks, { threshold: 50 })
+    expect(result).toMatchObject({
+      folded: false,
+      reason: 'hap1 steps node z, which is not among the nodes',
+    })
+    expect(result.tracks).toBe(tracks)
+  })
+
+  test('no reference track is refused', () => {
+    expect(foldGraph([], [])).toMatchObject({
+      folded: false,
+      reason: 'there is no reference walk at track 0',
+      haplotypes: 0,
+    })
+  })
+})
+
+describe('what a consumer passed', () => {
+  test("a folded track keeps its first walk's own fields, and its sourceTrackID", () => {
+    const nodes = [
+      { name: 'a', sequenceLength: 100 },
+      { name: 'b', sequenceLength: 100 },
+      { name: 'x', sequenceLength: 3 },
+    ]
+    const tracks = [
+      { name: 'ref', sequence: ['a', 'b'], sourceTrackID: 4, color: 'grey' },
+      { name: 'h1', sequence: ['a', 'x', 'b'], sourceTrackID: 7, color: 'red' },
+      { name: 'h2', sequence: ['a', 'b'], sourceTrackID: 7, color: 'blue' },
+    ]
+    const result = foldGraph(nodes, tracks, { threshold: 50 })
+    expect(result.folded && result.tracks).toMatchObject([
+      { id: 0, name: 'ref', label: 'ref', sourceTrackID: 4, color: 'grey' },
+      {
+        id: 1,
+        name: 'h1',
+        label: '2 haplotypes',
+        names: ['h1', 'h2'],
+        freq: 2,
+        sourceTrackID: 7,
+        color: 'red',
+      },
+    ])
+    expect(result.haplotypes).toBe(3)
+  })
+
+  test('walks come out in the order of the tracks, wherever the reference is', () => {
+    const { nodes, tracks } = graph({ a: 100, b: 100, x: 3 }, [
+      'a x b',
+      'a b',
+      'a b',
+    ])
+    const result = foldGraph(nodes, tracks, { threshold: 50, reference: 1 })
+    expect(result.walks.map(w => [w.name, w.track, w.insertedBp])).toEqual([
+      ['ref', 1, 3],
+      ['hap1', 0, 0],
+      ['hap2', 1, 0],
+    ])
+    expect(result.folded && result.tracks.map(t => t.label)).toEqual([
+      'hap1',
+      '2 haplotypes',
+    ])
+  })
+})
+
+describe('labels', () => {
+  test('a branch reads kind, size and carriers, and a cluster its range and count', () => {
+    const result = fold(
+      { a: 500, b: 500, x: 1000, y: 1010, c: 30000, d: 500, z: 20000 },
+      ['a b c d', 'a x b c d', 'a y b c d', 'a b d', 'a b z d'],
+      { threshold: 50, cluster: true },
+      [1, 5, 2, 4, 1],
+    )
+    expect(result.branches.map(b => branchLabel(b, result.haplotypes))).toEqual(
+      [
+        'insertion 1.0 kb to 1.0 kb (2 lengths), 7 of 13',
+        'deletion 30.0 kb, 4 of 13',
+        'replacement 20.0 kb for 30.0 kb, 1 of 13',
+      ],
+    )
+    expect(result.tracks.map(variationLabel)).toEqual([
+      '1 haplotype on 1 distinct walk, nothing folded away',
+      '7 haplotypes on 2 distinct walks, 0 bp to 10 bp folded away in each',
+      '4 haplotypes on 1 distinct walk, nothing folded away',
+      '1 haplotype on 1 distinct walk, nothing folded away',
+    ])
+    expect(bpLabel(999)).toBe('999 bp')
+    expect(bpLabel(123_456)).toBe('123 kb')
+  })
+})
+
+describe('where a branch is', () => {
+  test('a branch names the folded tracks that carry it', () => {
+    const result = fold(
+      { a: 100, b: 100, c: 100, x: 200 },
+      ['a b c', 'a c', 'a x b c', 'a x c'],
+      { threshold: 50 },
+    )
+    expect(result.branches.map(b => [b.kind, b.tracks, b.anchored])).toEqual([
+      ['insertion', [2], true],
+      ['deletion', [1], true],
+      ['other', [3], true],
+    ])
+  })
+
+  test('a branch with no box or jump of its own says so, and where on the reference it applies', () => {
+    const result = fold({ a: 100, b: 100, c: 7000 }, ['a b c', 'a b'], {
+      threshold: 50,
+    })
+    expect(result.branches).toEqual([
+      {
+        kind: 'other',
+        description: 'walk ends inside the window',
+        length: 7000,
+        insertedBp: 0,
+        deletedBp: 0,
+        refStart: 200,
+        refEnd: 200,
+        haplotypes: 1,
+        nodes: [],
+        tracks: [1],
+        anchored: false,
+      },
+    ])
+  })
+})
+
+describe('a pggb graph', () => {
+  const window: {
+    nodes: InputNode[]
+    tracks: InputTrack[]
+    revisited: number
+  } = JSON.parse(
+    readFileSync(new URL('fixtures/ecoli-pggb.json', import.meta.url), 'utf8'),
+  )
+
+  test('folds where its reference passes each node once, as the E. coli K12 example does', () => {
+    expect(window.revisited).toBe(0)
+    const result = foldGraph(window.nodes, window.tracks, {
+      threshold: 50,
+      referenceRevisits: window.revisited,
+    })
+    expect(result.folded).toBe(true)
+    expect(foldProblems(window.nodes, window.tracks, result)).toEqual([])
+  })
+
+  test('is refused where the file counts a revisited node', () => {
+    expect(
+      foldGraph(window.nodes, window.tracks, { referenceRevisits: 1 }).folded,
+    ).toBe(false)
   })
 })
 
@@ -661,6 +841,7 @@ describe('what a track hides', () => {
     expect(sequences(result)).toEqual(['a~c', 'a~c'])
     expect(result.tracks[0]!.variation).toEqual({
       walks: 1,
+      foldedAwayBp: { min: 0, median: 0, max: 0 },
       insertedBp: { min: 0, median: 0, max: 0 },
       skippedBp: { min: 0, median: 0, max: 0 },
     })
@@ -668,6 +849,7 @@ describe('what a track hides', () => {
       freq: 11,
       variation: {
         walks: 4,
+        foldedAwayBp: { min: 0, median: 10, max: 30 },
         insertedBp: { min: 0, median: 0, max: 30 },
         skippedBp: { min: 0, median: 0, max: 10 },
       },

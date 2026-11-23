@@ -1,5 +1,6 @@
 import { chain, runBounds } from './chain.ts'
 import { clusterLeaders, siteKey } from './cluster.ts'
+import { trackLabel } from './labels.ts'
 
 import type { Anchor } from './chain.ts'
 import type { Site } from './cluster.ts'
@@ -9,7 +10,7 @@ import type {
   BranchAllele,
   ClusterInfo,
   FoldOptions,
-  FoldResult,
+  Folded,
   FoldedNode,
   FoldedStep,
   FoldedTrack,
@@ -17,7 +18,10 @@ import type {
   InputNode,
   InputTrack,
   TrackVariation,
+  Unfolded,
 } from './types.ts'
+
+type BranchDraft = Omit<Branch, 'tracks' | 'anchored'>
 
 interface Detour extends Site {
   pair: number
@@ -90,6 +94,9 @@ function variationOf(
 ) {
   const result: TrackVariation = {
     walks: walks.length,
+    foldedAwayBp: spread(
+      walks.map(w => ({ bp: w.insertedBp + w.skippedBp, freq: w.freq })),
+    ),
     insertedBp: spread(walks.map(w => ({ bp: w.insertedBp, freq: w.freq }))),
     skippedBp: spread(walks.map(w => ({ bp: w.skippedBp, freq: w.freq }))),
   }
@@ -98,58 +105,32 @@ function variationOf(
 
 const noVariation = variationOf([{ insertedBp: 0, skippedBp: 0, freq: 1 }])
 
-function unfolded(
-  nodes: InputNode[],
-  tracks: InputTrack[],
+function haplotypesOf(tracks: InputTrack[]) {
+  return tracks.reduce((sum, track) => sum + (track.freq ?? 1), 0)
+}
+
+function unfolded<N extends InputNode, T extends InputTrack>(
+  nodes: N[],
+  tracks: T[],
   threshold: number,
   reason: string,
 ) {
-  const lengths = new Map(nodes.map(n => [n.name, lengthOfNode(n)]))
-  const result: FoldResult = {
+  const result: Unfolded<N, T> = {
     folded: false,
     reason,
     threshold,
-    nodes: nodes.map(n => ({
-      name: n.name,
-      sequenceLength: lengthOfNode(n),
-      kind: 'branch',
-    })),
-    tracks: tracks.map((track, id) => ({
-      id,
-      name: trackName(track, id),
-      sequence: track.sequence,
-      freq: track.freq ?? 1,
-      sourceTrackID: id,
-      ...(track.indexOfFirstBase === undefined
-        ? {}
-        : { indexOfFirstBase: track.indexOfFirstBase }),
-      names: [trackName(track, id)],
-      variation: noVariation,
-    })),
-    members: Object.fromEntries(nodes.map(n => [n.name, [n.name]])),
+    haplotypes: haplotypesOf(tracks),
+    nodes,
+    tracks,
+    members: {},
     branches: [],
-    walks: tracks.map((track, id) => {
-      const bp = track.sequence.reduce(
-        (sum, step) => sum + (lengths.get(parseStep(step).name) ?? 0),
-        0,
-      )
-      return {
-        name: trackName(track, id),
-        freq: track.freq ?? 1,
-        track: id,
-        originalBp: bp,
-        foldedBp: bp,
-        insertedBp: 0,
-        skippedBp: 0,
-        clippedBp: 0,
-        steps: [],
-      }
-    }),
+    walks: [],
   }
   return result
 }
 
 function whyUnfoldable(
+  nodes: InputNode[],
   tracks: InputTrack[],
   reference: number,
   referenceRevisits: number | undefined,
@@ -157,18 +138,28 @@ function whyUnfoldable(
   const sequence = tracks[reference]?.sequence ?? []
   const names = sequence.map(step => parseStep(step).name)
   const repeats = names.length - new Set(names).size
+  const known = new Set(nodes.map(n => n.name))
+  const missing = tracks.flatMap((track, index) => {
+    const step = track.sequence.find(s => !known.has(parseStep(s).name))
+    return step === undefined
+      ? []
+      : [
+          `${trackName(track, index)} steps node ${parseStep(step).name}, which is not among the nodes`,
+        ]
+  })[0]
   return sequence.length === 0
     ? `there is no reference walk at track ${reference}`
-    : referenceRevisits !== undefined && referenceRevisits > 0
-      ? `the reference passes ${referenceRevisits} nodes of the graph more than once, so a run off it may be a copy of reference sequence and not a variant`
-      : repeats > 0
-        ? `the reference passes ${repeats} nodes of this window more than once, so a run off it may be a copy of reference sequence and not a variant`
-        : undefined
+    : (missing ??
+        (referenceRevisits !== undefined && referenceRevisits > 0
+          ? `the reference passes ${referenceRevisits} nodes of the graph more than once, so a run off it may be a copy of reference sequence and not a variant`
+          : repeats > 0
+            ? `the reference passes ${repeats} nodes of this window more than once, so a run off it may be a copy of reference sequence and not a variant`
+            : undefined))
 }
 
-function foldWindow(
+function foldWindow<T extends InputTrack>(
   nodes: InputNode[],
-  tracks: InputTrack[],
+  tracks: T[],
   reference: number,
   threshold: number,
   cluster: boolean,
@@ -176,22 +167,14 @@ function foldWindow(
   boxed: boolean,
 ) {
   const lengths = new Map(nodes.map(n => [n.name, lengthOfNode(n)]))
-  const lengthOf = (name: string, track: string) => {
-    const length = lengths.get(name)
-    if (length === undefined) {
-      throw new Error(
-        `${track} steps node ${name}, which is not among the nodes`,
-      )
-    }
-    return length
-  }
+  const lengthOf = (name: string) => lengths.get(name) ?? 0
   const refTrack = tracks[reference]!
   const refName = trackName(refTrack, reference)
   const refSteps = refTrack.sequence.map(parseStep)
   const refIndex = new Map(refSteps.map((step, i) => [step.name, i]))
   const offsets = [0]
   for (const step of refSteps) {
-    offsets.push(offsets.at(-1)! + lengthOf(step.name, refName))
+    offsets.push(offsets.at(-1)! + lengthOf(step.name))
   }
   const refBase = refTrack.indexOfFirstBase ?? 0
   const refPos = (boundary: number) => refBase + offsets[boundary]!
@@ -202,7 +185,7 @@ function foldWindow(
     const steps = track.sequence.map(parseStep)
     const prefix = [0]
     for (const step of steps) {
-      prefix.push(prefix.at(-1)! + lengthOf(step.name, name))
+      prefix.push(prefix.at(-1)! + lengthOf(step.name))
     }
     const anchors = steps.flatMap((step, at) => {
       const ref = refIndex.get(step.name)
@@ -378,12 +361,18 @@ function foldWindow(
   const insideInversion = (name: string, length: number, at: Site) =>
     branchNode(unusedName(`inv:${name}`), length, at)
 
-  const branches = new Map<string, Branch>()
+  const branches = new Map<string, BranchDraft>()
+  const carriers = new Map<string, Set<number>>()
   const tallies = new Map<string, BranchTally>()
-  const carry = (key: string, freq: number, branch: () => Branch) => {
+  const carry = (
+    key: string,
+    walk: { freq: number; index: number },
+    branch: () => BranchDraft,
+  ) => {
     const seen = branches.get(key) ?? branch()
-    seen.haplotypes += freq
+    seen.haplotypes += walk.freq
     branches.set(key, seen)
+    carriers.set(key, (carriers.get(key) ?? new Set()).add(walk.index))
   }
 
   const foldedWalks = drawn.map(walk => {
@@ -427,7 +416,7 @@ function foldWindow(
         const visit = ownVisit(node, bp, false)
         absorb(visit, from, to)
         visits.push(visit)
-        carry(node, freq, () => ({
+        carry(node, walk, () => ({
           kind: 'other',
           description,
           length: bp,
@@ -459,7 +448,7 @@ function foldWindow(
     const walkEnd = (boundary: number, leftward: boolean, starts: boolean) => {
       const unwalked = unwalkedPast(boundary, leftward)
       if (unwalked >= threshold && leftward === (starts !== mostlyReversed)) {
-        carry(`end:${boundary}:${leftward}:${starts}`, freq, () => ({
+        carry(`end:${boundary}:${leftward}:${starts}`, walk, () => ({
           kind: 'other',
           description: starts
             ? 'walk starts inside the window'
@@ -467,8 +456,8 @@ function foldWindow(
           length: unwalked,
           insertedBp: 0,
           deletedBp: 0,
-          refStart: refPos(leftward ? 0 : boundary),
-          refEnd: refPos(leftward ? boundary : refSteps.length),
+          refStart: refPos(boundary),
+          refEnd: refPos(boundary),
           haplotypes: 0,
           nodes: [],
         }))
@@ -502,7 +491,7 @@ function foldWindow(
         if (before.reversed === run.reversed) {
           const from = Math.min(entered, reached)
           const to = Math.max(entered, reached)
-          carry(`repeat:${from}:${to}:${run.reversed}`, freq, () => ({
+          carry(`repeat:${from}:${to}:${run.reversed}`, walk, () => ({
             kind: 'other',
             description: 'reference walked twice',
             length: refBp(from, to),
@@ -518,7 +507,7 @@ function foldWindow(
       const boxing = boxed && run.reversed !== mostlyReversed
       if (run.reversed !== mostlyReversed) {
         const open = r === 0 || r === runs.length - 1
-        carry(`inversion:${run.start}:${run.end}:${open}`, freq, () => ({
+        carry(`inversion:${run.start}:${run.end}:${open}`, walk, () => ({
           kind: 'inversion',
           description: 'inversion',
           length: refBp(run.start, run.end),
@@ -530,6 +519,12 @@ function foldWindow(
           nodes: boxed
             ? segmentNames(run.start, run.end).map(invertedCopy)
             : segmentNames(run.start, run.end),
+          ...(run.start > 0
+            ? { from: segments[segmentOf[run.start - 1]!]!.name }
+            : {}),
+          ...(run.end < refSteps.length
+            ? { to: segments[segmentOf[run.end]!]!.name }
+            : {}),
           ...(open ? { open } : {}),
         }))
       }
@@ -621,7 +616,7 @@ function foldWindow(
         ) {
           listed.nodes.push(node)
         }
-        carry(key, freq, () => ({
+        carry(key, walk, () => ({
           kind:
             detour.inserted > 0 && deletedBp > 0
               ? 'other'
@@ -737,86 +732,118 @@ function foldWindow(
           ),
         }
   }
-  const branchList = [...branches].map(([key, branch]) => {
+  const groups = new Map<string, number[]>()
+  foldedWalks.forEach(({ sequence }, w) => {
+    const key = sequence.join()
+    groups.set(key, [...(groups.get(key) ?? []), w])
+  })
+  const trackOfWalk = new Map<number, number>()
+  const refFolded: FoldedTrack<T> = {
+    ...refTrack,
+    id: 0,
+    name: refName,
+    label: refName,
+    sequence: segments.map(segment => segment.name),
+    freq: refTrack.freq ?? 1,
+    sourceTrackID: refTrack.sourceTrackID ?? 0,
+    names: [refName],
+    variation: noVariation,
+  }
+  const haplotypeTracks = [...groups.values()].map((group, g) => {
+    const held = group.map(w => foldedWalks[w]!)
+    const first = held[0]!
+    const id = g + 1
+    for (const { walk } of held) {
+      trackOfWalk.set(walk.index, id)
+    }
+    const freq = held.reduce((sum, { walk }) => sum + walk.freq, 0)
+    const names = held.map(({ walk }) => walk.name)
+    const track: FoldedTrack<T> = {
+      ...tracks[first.walk.index]!,
+      id,
+      name: first.walk.name,
+      label: trackLabel(freq, names),
+      sequence: first.sequence,
+      freq,
+      sourceTrackID: tracks[first.walk.index]!.sourceTrackID ?? id,
+      names,
+      variation: variationOf(
+        held.map(h => ({
+          insertedBp: h.insertedBp,
+          skippedBp: h.skippedBp,
+          freq: h.walk.freq,
+        })),
+      ),
+    }
+    return track
+  })
+  const refLength = offsets.at(-1)!
+  const refWalk: FoldedWalk = {
+    name: refName,
+    freq: refFolded.freq,
+    track: 0,
+    originalBp: refLength,
+    foldedBp: refLength,
+    insertedBp: 0,
+    skippedBp: 0,
+    clippedBp: 0,
+    steps: [],
+  }
+  const walkOfInput = new Map(
+    foldedWalks.map(({ walk, sequence: _, ...amounts }) => {
+      const folded: FoldedWalk = {
+        name: walk.name,
+        freq: walk.freq,
+        track: trackOfWalk.get(walk.index) ?? 0,
+        ...amounts,
+      }
+      return [walk.index, folded]
+    }),
+  )
+  const branchList = [...branches].map(([key, draft]) => {
     const clustered = clusterOf(key)
     if (clustered !== undefined) {
-      for (const name of branch.nodes) {
+      for (const name of draft.nodes) {
         const node = foldedNodes.get(name)
         if (node !== undefined) {
           node.cluster = clustered.cluster
         }
       }
     }
-    return { ...branch, ...clustered }
+    const branch: Branch = {
+      ...draft,
+      ...clustered,
+      tracks: [
+        ...new Set(
+          [...(carriers.get(key) ?? [])].map(w => trackOfWalk.get(w) ?? 0),
+        ),
+      ].sort((a, b) => a - b),
+      anchored:
+        draft.nodes.length > 0 ||
+        (draft.from !== undefined && draft.to !== undefined),
+    }
+    return branch
   })
-
-  const refFolded: FoldedTrack = {
-    id: 0,
-    name: refName,
-    sequence: segments.map(segment => segment.name),
-    freq: refTrack.freq ?? 1,
-    sourceTrackID: 0,
-    ...(refTrack.indexOfFirstBase === undefined
-      ? {}
-      : { indexOfFirstBase: refTrack.indexOfFirstBase }),
-    names: [refName],
-    variation: noVariation,
-  }
-  const distinct = new Map<string, FoldedTrack>()
-  const walkList: FoldedWalk[] = foldedWalks.map(
-    ({ walk, sequence, ...amounts }) => {
-      const key = sequence.join()
-      const track = distinct.get(key) ?? {
-        id: distinct.size + 1,
-        name: walk.name,
-        sequence,
-        freq: 0,
-        sourceTrackID: distinct.size + 1,
-        names: [],
-        variation: noVariation,
-      }
-      track.freq += walk.freq
-      track.names.push(walk.name)
-      distinct.set(key, track)
-      return { name: walk.name, freq: walk.freq, track: track.id, ...amounts }
-    },
-  )
-  for (const track of distinct.values()) {
-    track.variation = variationOf(walkList.filter(w => w.track === track.id))
-  }
-  const refLength = offsets.at(-1)!
-  const result: FoldResult = {
+  const result: Folded<T> = {
     folded: true,
     threshold,
+    haplotypes: haplotypesOf(tracks),
     nodes: [...foldedNodes.values()],
-    tracks: [refFolded, ...distinct.values()],
+    tracks: [refFolded, ...haplotypeTracks],
     members: Object.fromEntries(
       [...members].map(([name, held]) => [name, [...held]]),
     ),
     branches: branchList.sort(
       (a, b) => a.refStart - b.refStart || a.refEnd - b.refEnd,
     ),
-    walks: [
-      {
-        name: refName,
-        freq: refFolded.freq,
-        track: 0,
-        originalBp: refLength,
-        foldedBp: refLength,
-        insertedBp: 0,
-        skippedBp: 0,
-        clippedBp: 0,
-        steps: [],
-      },
-      ...walkList,
-    ],
+    walks: tracks.map((_, index) => walkOfInput.get(index) ?? refWalk),
   }
   return result
 }
 
-export function foldGraph(
-  nodes: InputNode[],
-  tracks: InputTrack[],
+export function foldGraph<N extends InputNode, T extends InputTrack>(
+  nodes: N[],
+  tracks: T[],
   options: FoldOptions = {},
 ) {
   const {
@@ -827,7 +854,7 @@ export function foldGraph(
     referenceRevisits,
     inversions = 'walk',
   } = options
-  const reason = whyUnfoldable(tracks, reference, referenceRevisits)
+  const reason = whyUnfoldable(nodes, tracks, reference, referenceRevisits)
   return reason === undefined
     ? foldWindow(
         nodes,

@@ -1,13 +1,17 @@
-import type { FoldResult, InputNode, InputTrack } from './types.ts'
+import type { FoldResult, Folded, InputNode, InputTrack } from './types.ts'
 
 function nodeName(step: string) {
   return step.startsWith('-') ? step.slice(1) : step
 }
 
-export function foldProblems(
+function haplotypes(list: { freq?: number }[]) {
+  return list.reduce((sum, track) => sum + (track.freq ?? 1), 0)
+}
+
+function foldedProblems(
   nodes: InputNode[],
   tracks: InputTrack[],
-  result: FoldResult,
+  result: Folded,
 ) {
   const problems: string[] = []
   const inputLength = new Map(
@@ -22,7 +26,7 @@ export function foldProblems(
   )
   const jumps = new Set(
     result.branches.flatMap(b =>
-      b.from !== undefined && b.to !== undefined
+      b.kind !== 'inversion' && b.from !== undefined && b.to !== undefined
         ? [`${b.from}>${b.to}`, `${b.to}>${b.from}`]
         : [],
     ),
@@ -37,7 +41,7 @@ export function foldProblems(
         problems.push(`${track.name} steps ${name}, which is not a folded node`)
       }
       const before = track.sequence[s - 1]
-      if (result.folded && before !== undefined) {
+      if (before !== undefined) {
         const from = nodeName(before)
         const a = backbone.get(from)
         const b = backbone.get(name)
@@ -60,28 +64,25 @@ export function foldProblems(
     })
   }
 
-  const haplotypes = (list: { freq?: number }[]) =>
-    list.reduce((sum, track) => sum + (track.freq ?? 1), 0)
-  if (haplotypes(tracks) !== haplotypes(result.tracks)) {
-    problems.push(
-      `${haplotypes(tracks)} haplotypes went in and ${haplotypes(result.tracks)} came out`,
-    )
+  const counts = [
+    ['the tracks hold', haplotypes(result.tracks)],
+    ['the walks hold', haplotypes(result.walks)],
+    ['the result counts', result.haplotypes],
+  ] as const
+  for (const [what, count] of counts) {
+    if (count !== haplotypes(tracks)) {
+      problems.push(
+        `${haplotypes(tracks)} haplotypes went in and ${what} ${count}`,
+      )
+    }
   }
-  if (haplotypes(tracks) !== haplotypes(result.walks)) {
+  if (result.walks.length !== tracks.length) {
     problems.push(
-      `${haplotypes(tracks)} haplotypes went in and the walks hold ${haplotypes(result.walks)}`,
+      `${tracks.length} tracks went in and ${result.walks.length} walks came out`,
     )
   }
 
-  const inputBp = new Map<string, number[]>()
-  tracks.forEach((track, i) => {
-    const name = track.name ?? `track ${i}`
-    inputBp.set(name, [
-      ...(inputBp.get(name) ?? []),
-      bpOf(track.sequence, inputLength),
-    ])
-  })
-  for (const walk of result.walks) {
+  result.walks.forEach((walk, i) => {
     const track = result.tracks[walk.track]
     const drawnBp = track ? bpOf(track.sequence, foldedLength) : Number.NaN
     if (drawnBp !== walk.foldedBp) {
@@ -89,8 +90,11 @@ export function foldProblems(
         `${walk.name} is ${walk.foldedBp} bp folded and its track ${drawnBp} bp`,
       )
     }
-    if (!inputBp.get(walk.name)?.includes(walk.originalBp)) {
-      problems.push(`${walk.name} is not ${walk.originalBp} bp in the input`)
+    const inputBp = bpOf(tracks[i]?.sequence ?? [], inputLength)
+    if (inputBp !== walk.originalBp) {
+      problems.push(
+        `${walk.name} is ${inputBp} bp in the input and ${walk.originalBp} bp in its walk`,
+      )
     }
     const reconciled =
       walk.foldedBp - walk.skippedBp - walk.clippedBp + walk.insertedBp
@@ -99,6 +103,28 @@ export function foldProblems(
         `${walk.name} is ${walk.originalBp} bp and reconciles to ${reconciled} bp`,
       )
     }
+  })
+  for (const branch of result.branches) {
+    if (
+      branch.tracks.length === 0 ||
+      branch.tracks.some(id => result.tracks[id] === undefined)
+    ) {
+      problems.push(
+        `${branch.description} at ${branch.refStart} names no track, or one that is not there`,
+      )
+    }
   }
   return problems
+}
+
+export function foldProblems<N extends InputNode, T extends InputTrack>(
+  nodes: N[],
+  tracks: T[],
+  result: FoldResult<N, T>,
+) {
+  return result.folded
+    ? foldedProblems(nodes, tracks, result)
+    : result.nodes === nodes && result.tracks === tracks
+      ? []
+      : ['an unfolded result does not hold the nodes and tracks given']
 }

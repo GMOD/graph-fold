@@ -1,12 +1,12 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
-import { foldGraph, foldProblems } from '../src/index.ts'
-import { bpText, branchText, drawTubeMap } from './draw.ts'
+import { bpLabel, branchLabel, foldGraph, foldProblems } from '../src/index.ts'
+import { drawTubeMap } from './draw.ts'
 import { layoutTubeMap } from './tubemap.ts'
 import { windows } from './windows.ts'
 
-import type { FoldResult, InputNode, InputTrack } from '../src/index.ts'
+import type { Folded, InputNode, InputTrack } from '../src/index.ts'
 
 interface Window {
   revisited: number
@@ -69,7 +69,7 @@ mkdirSync('docs', { recursive: true })
 
 function expectBranch(
   id: string,
-  fold: FoldResult,
+  fold: Folded,
   kind: string,
   minBp: number,
   haplotypes: number,
@@ -77,7 +77,7 @@ function expectBranch(
   const found = fold.branches.find(
     b => b.kind === kind && b.length >= minBp && !b.open,
   )
-  const line = `${id} at ${fold.threshold} bp: ${found ? branchText(found, 464) : `no ${kind} of ${bpText(minBp)} or more`}`
+  const line = `${id} at ${fold.threshold} bp: ${found ? branchLabel(found, 464) : `no ${kind} of ${bpLabel(minBp)} or more`}`
   invariants.push(line)
   if (found?.haplotypes !== haplotypes) {
     failures.push(`${line}; expected ${haplotypes} haplotypes`)
@@ -126,19 +126,20 @@ for (const { id, title, file } of windows) {
     const problems = foldProblems(window.nodes, window.tracks, fold)
     const label = `${threshold} bp${cluster ? ', clustered' : ''}${inversions === 'box' ? ', inversions boxed' : ''}`
     invariants.push(
-      `${id} at ${label}: ${problems.length} problems over ${fold.walks.length} walks and ${fold.tracks.reduce((sum, t) => sum + t.freq, 0)} of ${haplotypes} haplotypes, ${fold.branches.length} branches, folded in ${ms} ms`,
+      `${id} at ${label}: ${problems.length} problems over ${fold.walks.length} walks and ${fold.haplotypes} of ${haplotypes} haplotypes, ${fold.branches.length} branches, folded in ${ms} ms`,
     )
     failures.push(...problems.map(problem => `${id} at ${label}: ${problem}`))
     if (!fold.folded) {
       failures.push(`${id} at ${label}: not folded, ${fold.reason}`)
     }
-    if (id === 'chr1-deletion' && threshold >= 1000) {
+    if (fold.folded && id === 'chr1-deletion' && threshold >= 1000) {
       expectBranch(id, fold, 'deletion', 45_000, 306)
     }
-    if (id === 'chr16-inversion') {
+    if (fold.folded && id === 'chr16-inversion') {
       expectBranch(id, fold, 'inversion', 16_000, 439)
     }
     const drawn =
+      fold.folded &&
       threshold !== 5000 &&
       (!cluster || id === 'chr1-deletion') &&
       (inversions === 'walk' ||
@@ -172,8 +173,8 @@ for (const { id, title, file } of windows) {
             ...(inversion
               ? [
                   inversions === 'box'
-                    ? `${inversion.haplotypes} haplotypes take the lower box, which is the ${bpText(inversion.length)} reference box above it read right to left`
-                    : `${inversion.haplotypes} haplotypes pass under the ${bpText(inversion.length)} block, turn, run it right to left, turn again and go on: follow the chevrons`,
+                    ? `${inversion.haplotypes} haplotypes take the lower box, which is the ${bpLabel(inversion.length)} reference box above it read right to left`
+                    : `${inversion.haplotypes} haplotypes pass under the ${bpLabel(inversion.length)} block, turn, run it right to left, turn again and go on: follow the chevrons`,
                 ]
               : []),
           ],
