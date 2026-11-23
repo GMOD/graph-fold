@@ -455,6 +455,31 @@ describe('labels', () => {
   })
 })
 
+describe('what a tube stands for', () => {
+  test('the same walk given as two tracks counts as one distinct walk', () => {
+    const result = fold(
+      { a: 100, b: 10, c: 100 },
+      ['a b c', 'a c', 'a c', 'a b c'],
+      { threshold: 50 },
+    )
+    expect(
+      result.tracks.map(t => [t.freq, t.variation.walks, t.names.length]),
+    ).toEqual([
+      [1, 1, 1],
+      [3, 2, 3],
+    ])
+  })
+
+  test('an inversion the window cuts through says so in its label', () => {
+    const result = fold({ a: 6000, b: 20, c: 30 }, ['a b c', 'a -c -b'], {
+      threshold: 5000,
+    })
+    expect(result.branches.map(b => branchLabel(b, result.haplotypes))).toEqual(
+      [expect.stringMatching(/, 1 of 2, continues past the window$/)],
+    )
+  })
+})
+
 describe('where a branch is', () => {
   test('a branch names the folded tracks that carry it', () => {
     const result = fold(
