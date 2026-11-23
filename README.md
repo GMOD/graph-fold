@@ -94,6 +94,11 @@ const named = tracks.map(t => ({
 - Walks that share a `haplotype` are one haplotype, counted once, as the largest
   `freq` among them. A walk without one is a haplotype of its own, `freq` of
   them, so a caller that passes none gets the counts it always had
+- Name a haplotype only on a track that is one walk. A track that already merges
+  several walks under its first walk's name, with `freq` counting them, stands
+  for haplotypes whose names are gone; given that one name, it would merge with
+  another of that haplotype's tracks and count as the larger `freq` alone. Leave
+  `haplotype` off it and it counts as its `freq`
 - The line above takes `sample#hap` from a PanSN name `sample#hap#contig` and
   leaves a name with fewer fields as it is. The fold reads no names itself,
   since not every name is PanSN
