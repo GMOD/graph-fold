@@ -1,3 +1,13 @@
+## [1.0.1](https://github.com/GMOD/graph-fold/compare/v1.0.0...v1.0.1) (2026-11-23)
+
+### Bug Fixes
+
+- Count a branch's carriers once, and read repeated, reversed and unwalked reference from the passes each walk makes ([1cd9179](https://github.com/GMOD/graph-fold/commit/1cd9179c52d0c3ff4697f0d81a66e2468cdf31c5))
+
+### Documentation
+
+- Prove the fold on chr14, C4 and AMY1, and say what duplications and nested inversions still do ([1c2b7e8](https://github.com/GMOD/graph-fold/commit/1c2b7e8dd170d5f21cd604d3f76bbe5e22c893f9))
+
 ## [1.0.0](https://github.com/GMOD/graph-fold/compare/v0.1.2...v1.0.0) (2026-11-23)
 
 ## [0.1.2](https://github.com/GMOD/graph-fold/compare/v0.1.1...v0.1.2) (2026-11-23)
