@@ -1,3 +1,13 @@
+## [0.1.1](https://github.com/GMOD/graph-fold/compare/v0.1.0...v0.1.1) (2026-11-23)
+
+### Bug Fixes
+
+- A tube's summary gives one size where the least and most folded away round alike ([aa52260](https://github.com/GMOD/graph-fold/commit/aa522607d8a218bcbced3de9967e88b56033a451))
+
+### Other Changes
+
+- Bump deps: the proof scripts run on the released tubemap-core 2.2.0 and graph-walks 9.1.0 ([e1de69d](https://github.com/GMOD/graph-fold/commit/e1de69d79b363ee4ba9b0da0b253fc8d3dbfd65d))
+
 ## [0.1.0](https://github.com/GMOD/graph-fold/compare/v0.1.0...v0.1.0) (2026-11-23)
 
 ### Documentation
