@@ -249,15 +249,20 @@ function foldWindow(
     runs: walk.runs.map(run => ({ ...run, drawn: drawnDetours(run) })),
   }))
 
+  const unwalkedPast = (boundary: number, leftward: boolean) =>
+    leftward ? refBp(0, boundary) : refBp(boundary, refSteps.length)
   const breakpoints = new Set([0, refSteps.length])
   for (const { runs } of drawn) {
     runs.forEach((run, r) => {
       const entered = run.reversed ? run.end : run.start
       const left = run.reversed ? run.start : run.end
-      if (r > 0) {
+      if (r > 0 || unwalkedPast(entered, !run.reversed) >= threshold) {
         breakpoints.add(entered)
       }
-      if (r < runs.length - 1) {
+      if (
+        r < runs.length - 1 ||
+        unwalkedPast(left, run.reversed) >= threshold
+      ) {
         breakpoints.add(left)
       }
       for (const detour of run.drawn) {
@@ -357,10 +362,10 @@ function foldWindow(
       from: number,
       to: number,
       boundary: number,
-      fallback: () => Visit | undefined,
+      fallback: Visit | undefined,
     ) => {
       const bp = prefix[to]! - prefix[from]!
-      if (bp >= threshold) {
+      if (bp >= threshold || (fallback === undefined && bp > 0)) {
         const node = branchNode(`${label}:${bp}`, bp)
         const visit = ownVisit(node, bp, false)
         absorb(visit, from, to)
@@ -377,9 +382,8 @@ function foldWindow(
           nodes: [node],
         }))
       } else {
-        const visit = fallback()
-        if (visit !== undefined && to > from) {
-          absorb(visit, from, to)
+        if (fallback !== undefined && to > from) {
+          absorb(fallback, from, to)
         }
       }
     }
@@ -395,20 +399,38 @@ function foldWindow(
       ? runs[0]?.reversed === true
       : strandBp[1]! > strandBp[0]!
     const refNameAt = (ref: number) => refSteps[ref]!.name
+    const walkEnd = (boundary: number, leftward: boolean, starts: boolean) => {
+      const unwalked = unwalkedPast(boundary, leftward)
+      if (unwalked >= threshold && leftward === (starts !== mostlyReversed)) {
+        carry(`end:${boundary}:${leftward}:${starts}`, freq, () => ({
+          kind: 'other',
+          description: starts
+            ? 'walk starts inside the window'
+            : 'walk ends inside the window',
+          length: unwalked,
+          insertedBp: 0,
+          deletedBp: 0,
+          refStart: refPos(leftward ? 0 : boundary),
+          refEnd: refPos(leftward ? boundary : refSteps.length),
+          haplotypes: 0,
+          nodes: [],
+        }))
+      }
+    }
 
     runs.forEach((run, r) => {
       const first = run.anchors[0]!
       const before = runs[r - 1]
       const entered = run.reversed ? run.end : run.start
-      const pendingLead = r === 0 && prefix[first.step]! < threshold
       if (before === undefined) {
+        walkEnd(entered, !run.reversed, true)
         stretch(
           `lead:${refNameAt(first.ref)}`,
-          'sequence off the reference where the walk starts',
+          'sequence off the reference before the walk first meets it',
           0,
           first.step,
           entered,
-          () => undefined,
+          undefined,
         )
       } else {
         const reached = before.reversed ? before.start : before.end
@@ -418,7 +440,7 @@ function foldWindow(
           before.anchors.at(-1)!.step + 1,
           first.step,
           reached,
-          () => visits.at(-1),
+          visits.at(-1),
         )
         if (before.reversed === run.reversed) {
           const from = Math.min(entered, reached)
@@ -499,9 +521,6 @@ function foldWindow(
       }
       const runVisits = inRefOrder(run, elements)
       visits.push(...runVisits)
-      if (pendingLead && first.step > 0) {
-        absorb(runVisits[0]!, 0, first.step)
-      }
 
       let home = runVisits[0]!
       run.anchors.forEach((anchor, pair) => {
@@ -569,14 +588,16 @@ function foldWindow(
 
       if (r === runs.length - 1) {
         const last = run.anchors.at(-1)!
+        const left = run.reversed ? run.start : run.end
         stretch(
           `tail:${refNameAt(last.ref)}`,
-          'sequence off the reference where the walk ends',
+          'sequence off the reference after the walk last leaves it',
           last.step + 1,
           steps.length,
-          run.reversed ? run.start : run.end,
-          () => visits.at(-1),
+          left,
+          undefined,
         )
+        walkEnd(left, run.reversed, false)
       }
     })
 

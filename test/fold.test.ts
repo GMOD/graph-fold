@@ -264,13 +264,36 @@ describe('window edges', () => {
     })
   })
 
-  test('sequence off the reference at a walk end is kept when large and folded when small', () => {
+  test('sequence off the reference at a walk end never rejoins in the window, so it is kept however short', () => {
     const result = fold({ a: 100, b: 100, x: 80, y: 8 }, ['a b', 'x a b y'], {
       threshold: 50,
     })
-    expect(sequences(result)).toEqual(['a~b', 'lead:a:80 a~b'])
-    expect(result.branches).toMatchObject([{ kind: 'other', insertedBp: 80 }])
-    expect(result.walks[1]).toMatchObject({ insertedBp: 8 })
+    expect(sequences(result)).toEqual(['a~b', 'lead:a:80 a~b tail:b:8'])
+    expect(result.branches.map(b => [b.kind, b.insertedBp])).toEqual([
+      ['other', 80],
+      ['other', 8],
+    ])
+  })
+
+  test('a walk that ends the threshold or more short of the reference is drawn ending there', () => {
+    const result = fold(
+      { a: 100, b: 100, c: 7000, x: 5 },
+      ['a b c', 'a b x', 'a b'],
+      { threshold: 50 },
+    )
+    expect(sequences(result)).toEqual(['a~b c', 'a~b tail:b:5', 'a~b'])
+    expect(result.branches).toMatchObject([
+      { kind: 'other', insertedBp: 5 },
+      {
+        kind: 'other',
+        description: 'walk ends inside the window',
+        length: 7000,
+        refStart: 200,
+        refEnd: 7200,
+        haplotypes: 2,
+      },
+    ])
+    expect(result.walks[1]).toMatchObject({ skippedBp: 0, clippedBp: 0 })
   })
 })
 
