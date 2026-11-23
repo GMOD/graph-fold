@@ -1,3 +1,5 @@
+## [1.0.0](https://github.com/GMOD/graph-fold/compare/v0.1.2...v1.0.0) (2026-11-23)
+
 ## [0.1.2](https://github.com/GMOD/graph-fold/compare/v0.1.1...v0.1.2) (2026-11-23)
 
 ### Bug Fixes
