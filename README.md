@@ -17,8 +17,9 @@ chr1:72,298,000-72,349,000, lays out 1,381 columns and 114,413 px wide:
 
 ![The window before folding: a hairline at 1.2% scale, and its first screen](docs/chr1-deletion-before.png)
 
-Folded at 1000 bp with clustering it is 8 nodes in 7 columns, and the deletion
-306 of the 464 haplotypes carry is the widest band:
+Folded at 1000 bp with clustering it is 8 nodes in 7 columns. Each tube is one
+distinct folded walk, and the 306 haplotypes with the deletion pass over 45.5 kb
+of reference without reading it:
 
 ![The window folded at 1000 bp with clustering: the 45.5 kb deletion and the 9.3 kb insertion site](docs/chr1-deletion-fold-1000-clustered.png)
 
@@ -53,6 +54,7 @@ const layout = layoutTubeMap(fold.nodes, fold.tracks, [], layoutOptions)
 | `clusterTolerance`  | 0.05    | How far two alleles may differ, as a share of the larger one's length                                  |
 | `reference`         | 0       | Index of the reference track                                                                           |
 | `referenceRevisits` | none    | How many nodes the reference passes more than once in the whole graph: graph-walks' `tables.revisited` |
+| `inversions`        | 'walk'  | `'walk'` steps the reference node reversed; `'box'` steps a copy of it, see [Inversions](#inversions)  |
 
 ## The rule
 
@@ -88,8 +90,13 @@ const layout = layoutTubeMap(fold.nodes, fold.tracks, [], layoutOptions)
 
 - `folded` and `reason`: false with the reason when the window is returned as it
   came
-- `nodes`: `{ name, sequenceLength, kind, refStart, refEnd, cluster }`, `kind`
-  being `reference` for a backbone node and `branch` for any other
+- `nodes`:
+  `{ name, sequenceLength, kind, refStart, refEnd, cluster, invertedOf }`,
+  `kind` being `reference` for a backbone node and `branch` for any other
+- `tracks[].variation`: what the track hides,
+  `{ walks, insertedBp, skippedBp }`: how many input walks it stands for, and
+  the `min`, `median` and `max` of the bp folded away on each, over its
+  haplotypes
 - `tracks`: the reference first, then one per distinct folded walk, with `id`,
   `name`, `sequence`, `freq`, `sourceTrackID` and `names`, the input walks it
   stands for
@@ -118,6 +125,50 @@ const layout = layoutTubeMap(fold.nodes, fold.tracks, [], layoutOptions)
 `foldProblems(nodes, tracks, result)` lists every broken invariant: a step on a
 node that is not there, a jump no branch reports, a haplotype count that
 changed, a walk whose bp do not reconcile.
+
+## What a tube hides
+
+A track groups the walks that fold to the same steps in the same directions, so
+it is exact about its route and silent about every difference under the
+threshold. On chr16 at 1000 bp the looping track is 439 haplotypes and 356
+distinct walks, which skip from 2 to 699 bp of the nodes drawn, 53 at the
+median. Lowering the threshold separates them: at 50 bp the 439 are a track of
+413 and a track of 26 that carry a 584 bp deletion as well. `variation` holds
+these numbers for each track, and a renderer should show them.
+
+## Inversions
+
+By default a carrier's walk is the true one, `A -B C`: it steps the reference
+node `B` reversed, and a tube map draws the loop. Drawn as tubes the 439
+carriers pass under the block, turn, run it right to left, turn again and go on:
+
+![chr16 folded at 1000 bp: the carriers' tube loops back through the 16.6 kb block](docs/chr16-inversion-fold-1000.png)
+
+With `inversions: 'box'` the carriers step through a copy of the block instead,
+`A inv:B C`, in the direction they travel:
+
+![chr16 folded at 1000 bp with the inversion boxed: a second box under the reference box](docs/chr16-inversion-fold-1000-box.png)
+
+- Use the loop where tubes are drawn one per walk, as above: it is the walk, and
+  nothing is drawn twice. Use the box where the picture is banded, since bands
+  are per step and draw the loop as two long edges under the block with nothing
+  inside it
+- A copy node has `kind: 'branch'`, the length and reference span of the node it
+  copies, and `invertedOf`, that node's name. The inversion branch's `nodes`
+  name the copies, and `members` lists what each holds
+- **A renderer must mark a copy.** It is the reference box read backwards, not
+  new sequence, and `invertedOf` is the only thing that says so. The proof
+  picture fills it with arrows against the reference and ties it to the box it
+  copies
+- A copy is named `inv:` and the node's name. Where an input node has that name
+  already, the copy takes a `'` more until none does
+- Which steps are the inverted pass is decided walk by walk: a run against the
+  direction of the walk's first and last runs. A walk stored back to front with
+  no inversion gets no copy, and one with an inversion steps `-inv:B`
+- A block that another kept branch cuts is one copy per piece, in the order the
+  carrier walks them. An insertion inside the block becomes a node of its own,
+  `inv:ins:…`, with no `invertedOf`, listed in the insertion's `nodes` beside
+  the node forward carriers take
 
 ## Clustering
 
@@ -151,19 +202,20 @@ HPRC v2.1 Minigraph-Cactus, GRCh38, 464 haplotypes, cut with graph-walks' figure
 preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`, banded by
 `layers: [{ data: 'haplotypes', stat: 'coarsen' }]` and unbanded.
 
-| window          | graph                        | nodes | distinct walks | columns, banded | px wide, banded | columns, unbanded | px wide, unbanded |
-| --------------- | ---------------------------- | ----- | -------------- | --------------- | --------------- | ----------------- | ----------------- |
-| chr15-alleles   | before                       | 439   | 88             | 297             | 20,828          | 297               | 23,937            |
-| chr15-alleles   | folded at 50 bp              | 15    | 7              | 13              | 1,510           | 13                | 1,463             |
-| chr15-alleles   | folded at 1000 bp            | 1     | 2              | 1               | 135             | 1                 | 135               |
-| chr1-deletion   | before                       | 1,906 | 279            | 1,381           | 114,413         | 1,381             | 124,219           |
-| chr1-deletion   | folded at 50 bp              | 65    | 64             | 9               | 1,686           | 9                 | 1,385             |
-| chr1-deletion   | folded at 1000 bp            | 63    | 64             | 7               | 1,458           | 7                 | 1,167             |
-| chr1-deletion   | folded at 50 bp, clustered   | 10    | 6              | 9               | 1,309           | 9                 | 1,182             |
-| chr1-deletion   | folded at 1000 bp, clustered | 8     | 6              | 7               | 1,081           | 7                 | 982               |
-| chr16-inversion | before                       | 1,655 | 377            | 1,104           | 86,654          | 1,104             | 156,585           |
-| chr16-inversion | folded at 50 bp              | 5     | 4              | 5               | 758             | 5                 | 742               |
-| chr16-inversion | folded at 1000 bp            | 3     | 3              | 3               | 504             | 3                 | 491               |
+| window          | graph                               | nodes | distinct walks | columns, banded | px wide, banded | columns, unbanded | px wide, unbanded |
+| --------------- | ----------------------------------- | ----- | -------------- | --------------- | --------------- | ----------------- | ----------------- |
+| chr15-alleles   | before                              | 439   | 88             | 297             | 20,828          | 297               | 23,937            |
+| chr15-alleles   | folded at 50 bp                     | 15    | 7              | 13              | 1,510           | 13                | 1,463             |
+| chr15-alleles   | folded at 1000 bp                   | 1     | 2              | 1               | 135             | 1                 | 135               |
+| chr1-deletion   | before                              | 1,906 | 279            | 1,381           | 114,413         | 1,381             | 124,219           |
+| chr1-deletion   | folded at 50 bp                     | 65    | 64             | 9               | 1,686           | 9                 | 1,385             |
+| chr1-deletion   | folded at 1000 bp                   | 63    | 64             | 7               | 1,458           | 7                 | 1,167             |
+| chr1-deletion   | folded at 50 bp, clustered          | 10    | 6              | 9               | 1,309           | 9                 | 1,182             |
+| chr1-deletion   | folded at 1000 bp, clustered        | 8     | 6              | 7               | 1,081           | 7                 | 982               |
+| chr16-inversion | before                              | 1,655 | 377            | 1,104           | 86,654          | 1,104             | 156,585           |
+| chr16-inversion | folded at 50 bp                     | 5     | 4              | 5               | 758             | 5                 | 742               |
+| chr16-inversion | folded at 1000 bp                   | 3     | 3              | 3               | 504             | 3                 | 491               |
+| chr16-inversion | folded at 1000 bp, inversions boxed | 4     | 3              | 3               | 463             | 3                 | 463               |
 
 - chr15, folded at 50 bp: insertions of 50 bp (177 haplotypes), 51 bp (2) and 99
   bp (310), deletions of 74 bp (310), 80 bp (271) and 156 bp (39), and a 159 bp
@@ -175,11 +227,19 @@ preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`, banded by
   on a folded node, every jump is a reported branch, and every walk's bp
   reconcile
 
-![chr15 folded at 50 bp](docs/chr15-alleles-fold-50.png)
+![chr15 folded at 50 bp, banded](docs/chr15-alleles-fold-50-banded.png)
 
 ![chr16 before](docs/chr16-inversion-before.png)
 
-![chr16 folded at 1000 bp](docs/chr16-inversion-fold-1000.png)
+![chr16 folded at 50 bp](docs/chr16-inversion-fold-50.png)
+
+- The folded pictures are tubes, one per distinct folded walk, with
+  `freqWidth: 'log'`; linear makes the 439 haplotype tube 6,585 px wide. A tube
+  is pale where it passes a node without reading it
+- chr15 reads better banded, above: its seven walks each carry several alleles,
+  so a tube cannot take one branch's colour. `docs/chr15-alleles-fold-50.png` is
+  the same fold as tubes, and
+  `docs/chr1-deletion-fold-1000-clustered-banded.png` the chr1 fold banded
 
 `pnpm fetch` cuts the windows and `pnpm prove` prints the table, checks the
 invariants and writes the pictures. The numbers are laid out with
@@ -219,8 +279,11 @@ invariants and writes the pictures. The numbers are laid out with
 - **Reads are not folded.** A read mapped to original nodes has no place on the
   folded ones
 - **No pggb window has been run**, only the synthetic gate tests
-- The windows were cut with graph-walks 8.0.1, the newest release past the
-  three-day `minimumReleaseAge`, and not 9.1.0
+- The installed graph-walks is 8.0.1, the newest release past the three-day
+  `minimumReleaseAge`. The windows were also cut with 9.1.0, from another
+  checkout's install through
+  `GRAPH_WALKS=<its esm/index.js> pnpm fetch --force`, and the three files came
+  out byte for byte the same
 
 ## License
 

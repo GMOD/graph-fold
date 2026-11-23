@@ -1,8 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
-import { CUT_PRESETS, WalkReader } from '@jbrowse/graph-walks'
-
 import { walkFile, windows } from './windows.ts'
 
 import type { GraphTables } from '@jbrowse/graph-walks'
@@ -36,6 +34,10 @@ function distinctTracks({ nodes, walks }: GraphTables, reference: string) {
   )
 }
 
+const graphWalks: typeof import('@jbrowse/graph-walks') = await import(
+  process.env.GRAPH_WALKS ?? '@jbrowse/graph-walks'
+)
+const { CUT_PRESETS, WalkReader } = graphWalks
 const force = process.argv.includes('--force')
 const reader = WalkReader.open(walkFile)
 const { references } = await reader.header()

@@ -102,23 +102,29 @@ for (const { id, title, file } of windows) {
     ]),
   )
 
+  const walk = 'walk' as const
+  const box = 'box' as const
   const variants = [
-    { threshold: 50, cluster: false },
-    { threshold: 1000, cluster: false },
-    { threshold: 5000, cluster: false },
-    { threshold: 50, cluster: true },
-    { threshold: 1000, cluster: true },
+    { threshold: 50, cluster: false, inversions: walk },
+    { threshold: 1000, cluster: false, inversions: walk },
+    { threshold: 5000, cluster: false, inversions: walk },
+    { threshold: 50, cluster: true, inversions: walk },
+    { threshold: 1000, cluster: true, inversions: walk },
+    { threshold: 50, cluster: false, inversions: box },
+    { threshold: 1000, cluster: false, inversions: box },
+    { threshold: 5000, cluster: false, inversions: box },
   ]
-  for (const { threshold, cluster } of variants) {
+  for (const { threshold, cluster, inversions } of variants) {
     const started = performance.now()
     const fold = foldGraph(window.nodes, window.tracks, {
       threshold,
       cluster,
+      inversions,
       referenceRevisits: window.revisited,
     })
     const ms = Math.round(performance.now() - started)
     const problems = foldProblems(window.nodes, window.tracks, fold)
-    const label = `${threshold} bp${cluster ? ', clustered' : ''}`
+    const label = `${threshold} bp${cluster ? ', clustered' : ''}${inversions === 'box' ? ', inversions boxed' : ''}`
     invariants.push(
       `${id} at ${label}: ${problems.length} problems over ${fold.walks.length} walks and ${fold.tracks.reduce((sum, t) => sum + t.freq, 0)} of ${haplotypes} haplotypes, ${fold.branches.length} branches, folded in ${ms} ms`,
     )
@@ -132,7 +138,11 @@ for (const { id, title, file } of windows) {
     if (id === 'chr16-inversion') {
       expectBranch(id, fold, 'inversion', 16_000, 439)
     }
-    const drawn = threshold !== 5000 && (!cluster || id === 'chr1-deletion')
+    const drawn =
+      threshold !== 5000 &&
+      (!cluster || id === 'chr1-deletion') &&
+      (inversions === 'walk' ||
+        (id === 'chr16-inversion' && threshold === 1000))
     if (drawn) {
       const after = measure(fold.nodes, fold.tracks)
       const basesPerPixel = Math.max(
@@ -141,23 +151,56 @@ for (const { id, title, file } of windows) {
           fold.nodes.reduce((sum, node) => sum + node.sequenceLength, 0) / 1100,
         ),
       )
-      const toScale = layout(fold.nodes, fold.tracks, {
-        ...banded,
+      rows.push(row(`folded at ${label}`, after))
+      const boxed = inversions === 'box'
+      const tubes = layout(fold.nodes, fold.tracks, {
+        ...(boxed ? banded : {}),
         nodeWidthOption: 'small',
         basesPerPixel,
+        freqWidth: 'log',
       })
-      rows.push(row(`folded at ${label}`, after))
+      const inversion = fold.branches.find(
+        b => b.kind === 'inversion' && !b.open,
+      )
       picture(
-        `${id}-fold-${threshold}${cluster ? '-clustered' : ''}`,
+        `${id}-fold-${threshold}${cluster ? '-clustered' : ''}${inversions === 'box' ? '-box' : ''}`,
         drawTubeMap(
-          toScale,
+          tubes,
           [
             `${title}: folded at ${label}`,
-            `${count(after.nodes)} nodes, ${count(after.walks)} distinct walks of ${haplotypes} haplotypes, ${count(after.banded.columns)} columns; node width is linear, ${basesPerPixel} bp to the px; ${fold.branches.length} kept ${fold.branches.length === 1 ? 'branch' : 'branches'}`,
+            `${count(after.nodes)} nodes, ${count(after.walks)} distinct walks of ${haplotypes} haplotypes, ${count(after.unbanded.columns)} columns; node width is linear, ${basesPerPixel} bp to the px; ${fold.branches.length} kept ${fold.branches.length === 1 ? 'branch' : 'branches'}`,
+            ...(inversion
+              ? [
+                  inversions === 'box'
+                    ? `${inversion.haplotypes} haplotypes take the lower box, which is the ${bpText(inversion.length)} reference box above it read right to left`
+                    : `${inversion.haplotypes} haplotypes pass under the ${bpText(inversion.length)} block, turn, run it right to left, turn again and go on: follow the chevrons`,
+                ]
+              : []),
           ],
           fold,
+          !boxed,
         ),
       )
+      if (
+        (id === 'chr1-deletion' && cluster && threshold === 1000) ||
+        (id === 'chr15-alleles' && threshold === 50)
+      ) {
+        picture(
+          `${id}-fold-${threshold}${cluster ? '-clustered' : ''}-banded`,
+          drawTubeMap(
+            layout(fold.nodes, fold.tracks, {
+              ...banded,
+              nodeWidthOption: 'small',
+              basesPerPixel,
+            }),
+            [
+              `${title}: folded at ${label}, banded`,
+              `${count(after.nodes)} nodes, ${count(after.banded.columns)} columns; one band per step between two nodes, sized by the haplotypes that take it`,
+            ],
+            fold,
+          ),
+        )
+      }
     }
   }
 }

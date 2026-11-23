@@ -17,6 +17,7 @@ export interface FoldOptions {
   clusterTolerance?: number
   reference?: number
   referenceRevisits?: number
+  inversions?: 'walk' | 'box'
 }
 
 export interface ClusterInfo {
@@ -33,6 +34,19 @@ export interface FoldedNode {
   refStart?: number
   refEnd?: number
   cluster?: ClusterInfo
+  invertedOf?: string
+}
+
+export interface BpSpread {
+  min: number
+  median: number
+  max: number
+}
+
+export interface TrackVariation {
+  walks: number
+  insertedBp: BpSpread
+  skippedBp: BpSpread
 }
 
 export interface FoldedTrack {
@@ -43,6 +57,7 @@ export interface FoldedTrack {
   sourceTrackID: number
   indexOfFirstBase?: number
   names: string[]
+  variation: TrackVariation
 }
 
 export type BranchKind = 'insertion' | 'deletion' | 'inversion' | 'other'

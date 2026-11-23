@@ -502,3 +502,175 @@ describe('chr15:92768150-92768700 of the HPRC v2.1 graph', () => {
     expect(result.branches).toEqual([])
   })
 })
+
+describe("inversions: 'box'", () => {
+  const lengths = { a: 100, b: 30, c: 40, d: 30, e: 100 }
+  const box = { threshold: 50, inversions: 'box' as const }
+
+  test('the default is the walk through the reference node, reversed', () => {
+    const walks = ['a b c d e', 'a -d -c -b e']
+    expect(fold(lengths, walks, { threshold: 50 })).toEqual(
+      fold(lengths, walks, { threshold: 50, inversions: 'walk' }),
+    )
+  })
+
+  test('a carrier stored forward steps through a copy of the block, forward', () => {
+    const result = fold(lengths, ['a b c d e', 'a -d -c -b e'], box, [1, 9])
+    expect(sequences(result)).toEqual(['a b~d e', 'a inv:b~d e'])
+    expect(result.nodes.find(n => n.name === 'inv:b~d')).toEqual({
+      name: 'inv:b~d',
+      sequenceLength: 100,
+      kind: 'branch',
+      refStart: 100,
+      refEnd: 200,
+      invertedOf: 'b~d',
+    })
+    expect(result.members['inv:b~d']).toEqual(['b', 'c', 'd'])
+    expect(result.branches).toMatchObject([
+      { kind: 'inversion', length: 100, haplotypes: 9, nodes: ['inv:b~d'] },
+    ])
+    expect(result.walks[1]).toMatchObject({ insertedBp: 0, skippedBp: 0 })
+  })
+
+  test('a carrier stored back to front steps through the copy the way it travels', () => {
+    const result = fold(lengths, ['a b c d e', '-e b c d -a'], box)
+    expect(sequences(result)).toEqual(['a b~d e', '-e -inv:b~d -a'])
+    expect(result.branches).toMatchObject([
+      { kind: 'inversion', nodes: ['inv:b~d'] },
+    ])
+  })
+
+  test('a non-carrier stored back to front gets no box', () => {
+    const result = fold(lengths, ['a b c d e', '-e -d -c -b -a'], box)
+    expect(sequences(result)).toEqual(['a~e', '-a~e'])
+    expect(result.nodes.some(n => n.invertedOf !== undefined)).toBe(false)
+  })
+
+  test('a small variant inside the block folds into the copy', () => {
+    const result = fold({ ...lengths, x: 3 }, ['a b c d e', 'a -d x -b e'], box)
+    expect(sequences(result)).toEqual(['a b~d e', 'a inv:b~d e'])
+    expect(result.members['inv:b~d']).toEqual(['b', 'c', 'd', 'x'])
+    expect(result.members['b~d']).toEqual(['b', 'c', 'd'])
+    expect(result.walks[1]!.steps).toEqual([
+      { step: 1, node: 'inv:b~d', insertedBp: 3, skippedBp: 40, clippedBp: 0 },
+    ])
+  })
+
+  test('an inversion the window cuts through is boxed and stays open', () => {
+    const result = fold({ a: 6000, b: 20, c: 30 }, ['a b c', 'a -c -b'], {
+      threshold: 5000,
+      inversions: 'box',
+    })
+    expect(sequences(result)).toEqual(['a b~c', 'a inv:b~c'])
+    expect(result.branches).toMatchObject([
+      { kind: 'inversion', open: true, nodes: ['inv:b~c'] },
+    ])
+  })
+
+  test('two inversions in one window get a copy each', () => {
+    const result = fold(
+      { a: 100, b: 100, c: 100, d: 100, e: 100 },
+      ['a b c d e', 'a -b c d e', 'a b c -d e', 'a -b c -d e'],
+      box,
+    )
+    expect(sequences(result)).toEqual([
+      'a b c d e',
+      'a inv:b c d e',
+      'a b c inv:d e',
+      'a inv:b c inv:d e',
+    ])
+    expect(result.branches.map(b => [b.nodes, b.haplotypes])).toEqual([
+      [['inv:b'], 2],
+      [['inv:d'], 2],
+    ])
+  })
+
+  test('a block another branch cuts is a copy of each piece, in the order the carrier walks them', () => {
+    const result = fold(
+      { a: 100, b: 100, c: 100, d: 100, e: 100 },
+      ['a b c d e', 'a -d -c -b e', 'a b d e'],
+      box,
+    )
+    expect(sequences(result)).toEqual([
+      'a b c d e',
+      'a inv:d inv:c inv:b e',
+      'a b d e',
+    ])
+    expect(result.branches.find(b => b.kind === 'inversion')?.nodes).toEqual([
+      'inv:b',
+      'inv:c',
+      'inv:d',
+    ])
+  })
+
+  test('an insertion inside the block is a node of its own, walked the way the carrier travels', () => {
+    const result = fold(
+      { a: 100, b: 100, c: 100, d: 100, x: 200 },
+      ['a b c d', 'a -c x -b d', 'a b x c d'],
+      box,
+    )
+    expect(sequences(result)).toEqual([
+      'a b c d',
+      'a inv:c inv:ins:b:200 inv:b d',
+      'a b ins:b:200 c d',
+    ])
+    expect(result.nodes.find(n => n.name === 'inv:ins:b:200')).toMatchObject({
+      kind: 'branch',
+      sequenceLength: 200,
+    })
+    expect(
+      result.nodes.find(n => n.name === 'inv:ins:b:200')?.invertedOf,
+    ).toBeUndefined()
+    expect(result.branches.find(b => b.kind === 'insertion')).toMatchObject({
+      haplotypes: 2,
+      nodes: ['inv:ins:b:200', 'ins:b:200'],
+    })
+  })
+
+  test('a copy takes a name no input node has', () => {
+    const result = fold(
+      { a: 100, b: 100, c: 100, 'inv:b': 5 },
+      ['a b c', 'a -b c', 'a inv:b b c'],
+      box,
+    )
+    expect(sequences(result)).toEqual(['a b c', "a inv:b' c", 'a b c'])
+    expect(result.nodes.find(n => n.invertedOf === 'b')?.name).toBe("inv:b'")
+  })
+
+  test('the chr15 window, which has no inversion, folds the same either way', () => {
+    const window: { nodes: InputNode[]; tracks: InputTrack[] } = JSON.parse(
+      readFileSync(
+        new URL('fixtures/chr15-92768150-92768700.json', import.meta.url),
+        'utf8',
+      ),
+    )
+    expect(foldGraph(window.nodes, window.tracks, box)).toEqual(
+      foldGraph(window.nodes, window.tracks, { threshold: 50 }),
+    )
+  })
+})
+
+describe('what a track hides', () => {
+  test('a track counts the walks it stands for and the spread of what was folded away, by haplotype', () => {
+    const result = fold(
+      { a: 100, b: 10, c: 100, x: 4, y: 30 },
+      ['a b c', 'a c', 'a x b c', 'a b y c', 'a b c'],
+      { threshold: 50 },
+      [1, 5, 2, 1, 3],
+    )
+    expect(sequences(result)).toEqual(['a~c', 'a~c'])
+    expect(result.tracks[0]!.variation).toEqual({
+      walks: 1,
+      insertedBp: { min: 0, median: 0, max: 0 },
+      skippedBp: { min: 0, median: 0, max: 0 },
+    })
+    expect(result.tracks[1]).toMatchObject({
+      freq: 11,
+      variation: {
+        walks: 4,
+        insertedBp: { min: 0, median: 0, max: 30 },
+        skippedBp: { min: 0, median: 0, max: 10 },
+      },
+    })
+  })
+})
