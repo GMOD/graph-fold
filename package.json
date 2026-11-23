@@ -1,0 +1,63 @@
+{
+  "name": "@jbrowse/graph-fold",
+  "version": "0.0.0",
+  "description": "Fold small variation out of a pangenome graph window, so a sequence tube map shows its structural variants",
+  "license": "MIT",
+  "packageManager": "pnpm@11.15.1",
+  "type": "module",
+  "sideEffects": false,
+  "author": {
+    "name": "Colin Diesh",
+    "email": "colin.diesh@gmail.com",
+    "url": "https://github.com/cmdcolin"
+  },
+  "main": "dist/index.js",
+  "exports": {
+    "import": "./esm/index.js",
+    "require": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "esm",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest",
+    "clean": "rimraf dist esm",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --type-aware --tsconfig tsconfig.lint.json --report-unused-disable-directives --deny-warnings",
+    "typecheck": "tsrs --noEmit -p tsconfig.lint.json",
+    "prebuild": "pnpm clean",
+    "build": "pnpm build:esm && pnpm build:es5",
+    "build:esm": "tsc --outDir esm",
+    "build:es5": "tsc --module commonjs --moduleResolution bundler --outDir dist",
+    "postbuild:es5": "echo '{\"type\": \"commonjs\"}' > dist/package.json",
+    "prepack": "pnpm build",
+    "fetch": "node scripts/fetch.ts",
+    "prove": "node scripts/prove.ts",
+    "preversion": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test --run && pnpm build"
+  },
+  "devDependencies": {
+    "@jbrowse/graph-walks": "^8.0.1",
+    "@jbrowse/tubemap-core": "^2.0.1",
+    "@types/node": "^26.6.6",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
+    "oxlint-tsgolint": "7.0.2007",
+    "rimraf": "^6.1.4",
+    "tsrs": "7.1.0-beta.tsrs3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  },
+  "keywords": [
+    "pangenome",
+    "tubemap",
+    "structural-variants",
+    "variation-graph",
+    "genomics"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

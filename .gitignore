@@ -1,0 +1,12 @@
+.DS_Store
+node_modules
+coverage
+dist
+esm
+*.log
+*.swp
+.vscode/
+*.cpuprofile
+.claude/settings.local.json
+.claude/worktrees/
+data
