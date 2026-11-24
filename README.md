@@ -52,8 +52,10 @@ if (fold.folded) {
 }
 ```
 
-- `nodes` are `{ name, sequenceLength }`; a node with `seq` and no
-  `sequenceLength` takes its length from `seq`
+- `nodes` are `{ name, sequenceLength, placeholder }`; a node with `seq` and no
+  `sequenceLength` takes its length from `seq`. `placeholder` marks a stretch
+  of a walk whose nodes the caller did not load, see
+  [Stretches not loaded](#stretches-not-loaded)
 - `tracks` are
   `{ name, sequence, freq, haplotype, indexOfFirstBase, sourceTrackID }`, where
   `sequence` lists node names with a `-` prefix for a reversed step, `freq`
@@ -76,6 +78,21 @@ if (fold.folded) {
 | `reference`         | 0       | Index of the reference track                                                                          |
 | `referenceRevisits` | none    | How many nodes the reference passes more than once in the whole graph, see [the gate](#the-gate)      |
 | `inversions`        | 'walk'  | `'walk'` steps the reference node reversed; `'box'` steps a copy of it, see [Inversions](#inversions) |
+
+## Stretches not loaded
+
+A caller that cuts a window from a larger file may leave some stretches of a
+walk unread and stand one node in for each, with the stretch's length. Mark
+such a node `placeholder: true`. Two walks with the same length at the same site
+are one branch when their sequence is read, but two stretches not read are not
+known to be alike, so:
+
+- A detour or a walk end that holds a stretch not loaded, at or over the
+  threshold, is a node of that walk alone, named with `@` and the walk's index,
+  and flagged `placeholder`. It is never clustered with another allele, so the
+  walk is a track of its own there
+- One under the threshold folds into the reference as any detour does
+- With no node marked, the result is the same as before the field existed
 
 ## Fragments
 
@@ -167,8 +184,9 @@ const named = tracks.map(t => ({
 ### Folded
 
 - `nodes`:
-  `{ name, sequenceLength, kind, refStart, refEnd, cluster, invertedOf }`,
-  `kind` being `reference` for a backbone node and `branch` for any other
+  `{ name, sequenceLength, kind, refStart, refEnd, cluster, invertedOf, placeholder }`,
+  `kind` being `reference` for a backbone node and `branch` for any other, and
+  `placeholder` set on a node that holds a stretch not loaded
 - `tracks`: the reference first, then one per distinct folded walk. Each is its
   first input walk's own fields, `sourceTrackID` among them, with these set:
   - `id`: its index in `tracks`
@@ -215,7 +233,11 @@ const named = tracks.map(t => ({
   `originalBp = foldedBp - skippedBp - clippedBp + insertedBp`. `steps` lists
   each step of the folded track where the walk differs from the node drawn:
   `insertedBp` it has and the node lacks, `skippedBp` of the node it leaves out,
-  `clippedBp` of the node past the walk's end
+  `clippedBp` of the node past the walk's end, and the largest single piece of
+  each the fold hid there: `largestInsertedBp`, the most bp off the reference
+  between two consecutive reference steps the walk keeps, and
+  `largestSkippedBp`, the most reference between two such steps. Both are under
+  the threshold
 
 ### Labels
 
@@ -236,7 +258,8 @@ Every renderer should print the same text, so the package makes it:
 `foldProblems(nodes, tracks, result)` lists every broken invariant: a step on a
 node that is not there, a jump no branch reports, a haplotype count that
 changed, a track whose `haplotypes` is not its walks', a walk whose bp do not
-reconcile, a branch that counts more haplotypes than its tracks hold.
+reconcile, a branch that counts more haplotypes than its tracks hold, a step
+that hides a piece off the reference or a skip of it at or over the threshold.
 
 ## What a tube hides
 
