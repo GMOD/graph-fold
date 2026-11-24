@@ -53,8 +53,8 @@ if (fold.folded) {
 ```
 
 - `nodes` are `{ name, sequenceLength, placeholder }`; a node with `seq` and no
-  `sequenceLength` takes its length from `seq`. `placeholder` marks a stretch
-  of a walk whose nodes the caller did not load, see
+  `sequenceLength` takes its length from `seq`. `placeholder` marks a stretch of
+  a walk whose nodes the caller did not load, see
   [Stretches not loaded](#stretches-not-loaded)
 - `tracks` are
   `{ name, sequence, freq, haplotype, indexOfFirstBase, sourceTrackID }`, where
@@ -82,10 +82,10 @@ if (fold.folded) {
 ## Stretches not loaded
 
 A caller that cuts a window from a larger file may leave some stretches of a
-walk unread and stand one node in for each, with the stretch's length. Mark
-such a node `placeholder: true`. Two walks with the same length at the same site
-are one branch when their sequence is read, but two stretches not read are not
-known to be alike, so:
+walk unread and stand one node in for each, with the stretch's length. Mark such
+a node `placeholder: true`. Two walks with the same length at the same site are
+one branch when their sequence is read, but two stretches not read are not known
+to be alike, so:
 
 - A detour or a walk end that holds a stretch not loaded, at or over the
   threshold, is a node of that walk alone, named with `@` and the walk's index,

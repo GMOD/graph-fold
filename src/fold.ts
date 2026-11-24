@@ -312,7 +312,9 @@ function foldWindow<T extends InputTrack>(
   )
   const leaderOf = cluster
     ? clusterLeaders(
-        new Map([...siteTally].filter(([, { site }]) => site.walk === undefined)),
+        new Map(
+          [...siteTally].filter(([, { site }]) => site.walk === undefined),
+        ),
         offsets,
         tolerance,
       )

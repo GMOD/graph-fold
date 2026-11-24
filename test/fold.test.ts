@@ -1475,11 +1475,7 @@ describe('what a walk hides between two reference steps it keeps', () => {
 
   test('runs off the reference each under the threshold are not drawn, however much they add up to, and the largest is stated', () => {
     const result = fold(site, walks, { threshold: 472 })
-    expect(sequences(result)).toEqual([
-      'a r1~b',
-      'a r1~b',
-      'a ins:a:523 r1~b',
-    ])
+    expect(sequences(result)).toEqual(['a r1~b', 'a r1~b', 'a ins:a:523 r1~b'])
     expect(result.walks[1]!.steps).toEqual([
       {
         step: 0,
