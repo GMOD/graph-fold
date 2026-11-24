@@ -213,6 +213,7 @@ function foldWindow<T extends InputTrack>(
 ) {
   const haplotypesIn = haplotypeCounter(tracks)
   const lengths = new Map(nodes.map(n => [n.name, lengthOfNode(n)]))
+  const notLoaded = new Set(nodes.flatMap(n => (n.placeholder ? [n.name] : [])))
   const lengthOf = (name: string) => lengths.get(name) ?? 0
   const refTrack = tracks[reference]!
   const refName = trackName(refTrack, reference)
@@ -230,9 +231,15 @@ function foldWindow<T extends InputTrack>(
     const name = trackName(track, index)
     const steps = track.sequence.map(parseStep)
     const prefix = [0]
+    const notLoadedBefore = [0]
     for (const step of steps) {
       prefix.push(prefix.at(-1)! + lengthOf(step.name))
+      notLoadedBefore.push(
+        notLoadedBefore.at(-1)! + Number(notLoaded.has(step.name)),
+      )
     }
+    const holdsNotLoaded = (from: number, to: number) =>
+      notLoadedBefore[to]! > notLoadedBefore[from]!
     const anchors = steps.flatMap((step, at) => {
       const ref = refIndex.get(step.name)
       return ref === undefined
@@ -260,6 +267,10 @@ function foldWindow<T extends InputTrack>(
               left,
               right: deleted >= threshold ? right : left,
               inserted: inserted >= threshold ? inserted : 0,
+              ...(inserted >= threshold &&
+              holdsNotLoaded(before.step + 1, anchor.step)
+                ? { walk: index }
+                : {}),
             })
           }
         }
@@ -269,14 +280,23 @@ function foldWindow<T extends InputTrack>(
     })
     return index === reference
       ? []
-      : [{ index, name, freq: track.freq ?? 1, steps, prefix, runs }]
+      : [
+          {
+            index,
+            name,
+            freq: track.freq ?? 1,
+            steps,
+            prefix,
+            holdsNotLoaded,
+            runs,
+          },
+        ]
   })
 
   const siteWalks = new Map<string, { site: Site; walks: Set<number> }>()
   for (const { runs, index } of walks) {
     for (const { detours } of runs) {
-      for (const { left, right, inserted } of detours) {
-        const site = { left, right, inserted }
+      for (const { pair: _, ...site } of detours) {
         const seen = siteWalks.get(siteKey(site)) ?? { site, walks: new Set() }
         siteWalks.set(siteKey(site), { site, walks: seen.walks.add(index) })
       }
@@ -289,7 +309,11 @@ function foldWindow<T extends InputTrack>(
     ]),
   )
   const leaderOf = cluster
-    ? clusterLeaders(siteTally, offsets, tolerance)
+    ? clusterLeaders(
+        new Map([...siteTally].filter(([, { site }]) => site.walk === undefined)),
+        offsets,
+        tolerance,
+      )
     : new Map<string, Site>()
 
   const inRefOrder = <T>(run: ChainedRun, items: T[]) =>
@@ -378,7 +402,12 @@ function foldWindow<T extends InputTrack>(
     })
     members.set(name, new Set(refSteps.slice(start, end).map(s => s.name)))
   }
-  const branchNode = (name: string, length: number, at?: Site) => {
+  const branchNode = (
+    name: string,
+    length: number,
+    at?: Site,
+    placeholder = false,
+  ) => {
     if (!foldedNodes.has(name)) {
       foldedNodes.set(name, {
         name,
@@ -387,6 +416,7 @@ function foldWindow<T extends InputTrack>(
         ...(at === undefined
           ? {}
           : { refStart: refPos(at.left), refEnd: refPos(at.right) }),
+        ...(placeholder ? { placeholder } : {}),
       })
       members.set(name, new Set())
     }
@@ -409,8 +439,12 @@ function foldWindow<T extends InputTrack>(
     }
     return copy
   }
-  const insideInversion = (name: string, length: number, at: Site) =>
-    branchNode(unusedName(`inv:${name}`), length, at)
+  const insideInversion = (
+    name: string,
+    length: number,
+    at: Site,
+    placeholder: boolean,
+  ) => branchNode(unusedName(`inv:${name}`), length, at, placeholder)
 
   const branches = new Map<string, BranchDraft>()
   const carriers = new Map<string, Set<number>>()
@@ -449,6 +483,8 @@ function foldWindow<T extends InputTrack>(
 
   const foldedWalks = drawn.map(walk => {
     const { steps, prefix, runs } = walk
+    const ownName = (name: string, own: boolean) =>
+      own ? `${name}@${walk.index}` : name
     const visits: Visit[] = []
     const absorb = (visit: Visit, from: number, to: number) => {
       const bp = prefix[to]! - prefix[from]!
@@ -484,7 +520,13 @@ function foldWindow<T extends InputTrack>(
     ) => {
       const bp = prefix[to]! - prefix[from]!
       if (bp >= threshold || (fallback === undefined && bp > 0)) {
-        const node = branchNode(`${label}:${bp}`, bp)
+        const own = walk.holdsNotLoaded(from, to)
+        const node = branchNode(
+          ownName(`${label}:${bp}`, own),
+          bp,
+          undefined,
+          own,
+        )
         const visit = ownVisit(node, bp, false)
         absorb(visit, from, to)
         visits.push(visit)
@@ -746,13 +788,16 @@ function foldWindow<T extends InputTrack>(
           elements.push(visit)
         }
         if (detour !== undefined && detour.inserted > 0) {
-          const name =
+          const own = detour.walk !== undefined
+          const name = ownName(
             detour.right > detour.left
               ? `ins:${refNameAt(detour.left - 1)}:${detour.inserted}:${refNameAt(detour.right)}`
-              : `ins:${refNameAt(detour.left - 1)}:${detour.inserted}`
+              : `ins:${refNameAt(detour.left - 1)}:${detour.inserted}`,
+            own,
+          )
           const node = boxing
-            ? insideInversion(name, detour.inserted, detour)
-            : branchNode(name, detour.inserted, detour)
+            ? insideInversion(name, detour.inserted, detour, own)
+            : branchNode(name, detour.inserted, detour, own)
           const visit = ownVisit(
             node,
             detour.inserted,
@@ -814,7 +859,7 @@ function foldWindow<T extends InputTrack>(
       steps.forEach((step, at) => {
         const length = prefix[at + 1]! - prefix[at]!
         const visit = ownVisit(
-          branchNode(step.name, length),
+          branchNode(step.name, length, undefined, notLoaded.has(step.name)),
           length,
           step.reversed,
         )
