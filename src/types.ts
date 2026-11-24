@@ -112,6 +112,8 @@ export interface FoldedStep {
   insertedBp: number
   skippedBp: number
   clippedBp: number
+  largestInsertedBp: number
+  largestSkippedBp: number
 }
 
 export interface FoldedWalk {

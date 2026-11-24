@@ -134,6 +134,19 @@ function foldedProblems(
         `${walk.name} is ${walk.originalBp} bp and reconciles to ${reconciled} bp`,
       )
     }
+    const notUnder = `not under the threshold of ${result.threshold} bp`
+    for (const step of walk.steps) {
+      if (step.largestInsertedBp >= result.threshold) {
+        problems.push(
+          `${walk.name} hides ${step.largestInsertedBp} bp off the reference in ${step.node}, ${notUnder}`,
+        )
+      }
+      if (step.largestSkippedBp >= result.threshold) {
+        problems.push(
+          `${walk.name} hides a skip of ${step.largestSkippedBp} bp of the reference in ${step.node}, ${notUnder}`,
+        )
+      }
+    }
   })
   for (const branch of result.branches) {
     if (

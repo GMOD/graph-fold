@@ -13,6 +13,7 @@ import {
 import type {
   FoldOptions,
   Folded,
+  FoldedStep,
   InputNode,
   InputTrack,
 } from '../src/index.ts'
@@ -200,8 +201,24 @@ describe('detours at or over the threshold', () => {
     )
     expect(sequences(result)).toEqual(['a~b c d~f', 'a~b d~f'])
     expect(result.walks[1]!.steps).toEqual([
-      { step: 0, node: 'a~b', insertedBp: 1, skippedBp: 1, clippedBp: 0 },
-      { step: 1, node: 'd~f', insertedBp: 0, skippedBp: 3, clippedBp: 0 },
+      {
+        step: 0,
+        node: 'a~b',
+        insertedBp: 1,
+        skippedBp: 1,
+        clippedBp: 0,
+        largestInsertedBp: 1,
+        largestSkippedBp: 1,
+      },
+      {
+        step: 1,
+        node: 'd~f',
+        insertedBp: 0,
+        skippedBp: 3,
+        clippedBp: 0,
+        largestInsertedBp: 0,
+        largestSkippedBp: 3,
+      },
     ])
   })
 })
@@ -983,7 +1000,15 @@ describe("inversions: 'box'", () => {
     expect(result.members['inv:b~d']).toEqual(['b', 'c', 'd', 'x'])
     expect(result.members['b~d']).toEqual(['b', 'c', 'd'])
     expect(result.walks[1]!.steps).toEqual([
-      { step: 1, node: 'inv:b~d', insertedBp: 3, skippedBp: 40, clippedBp: 0 },
+      {
+        step: 1,
+        node: 'inv:b~d',
+        insertedBp: 3,
+        skippedBp: 40,
+        clippedBp: 0,
+        largestInsertedBp: 3,
+        largestSkippedBp: 40,
+      },
     ])
   })
 
@@ -1420,5 +1445,106 @@ describe('stretches the cut did not load', () => {
         ),
       )
     }
+  })
+})
+
+describe('what a walk hides between two reference steps it keeps', () => {
+  const site = {
+    a: 1000,
+    r1: 10,
+    r2: 5,
+    r3: 5,
+    r4: 5,
+    r5: 12,
+    r6: 10,
+    b: 1000,
+    x1: 453,
+    x2: 1,
+    x3: 1,
+    x4: 1,
+    x5: 2,
+    x6: 27,
+    x7: 1,
+    y: 523,
+  }
+  const walks = [
+    'a r1 r2 r3 r4 r5 r6 b',
+    'a x1 r1 x2 r2 x3 r3 x4 r4 x5 r5 x6 r6 x7 b',
+    'a y r1 r2 r3 r4 r5 r6 b',
+  ]
+
+  test('runs off the reference each under the threshold are not drawn, however much they add up to, and the largest is stated', () => {
+    const result = fold(site, walks, { threshold: 472 })
+    expect(sequences(result)).toEqual([
+      'a r1~b',
+      'a r1~b',
+      'a ins:a:523 r1~b',
+    ])
+    expect(result.walks[1]!.steps).toEqual([
+      {
+        step: 0,
+        node: 'a',
+        insertedBp: 453,
+        skippedBp: 0,
+        clippedBp: 0,
+        largestInsertedBp: 453,
+        largestSkippedBp: 0,
+      },
+      {
+        step: 1,
+        node: 'r1~b',
+        insertedBp: 33,
+        skippedBp: 0,
+        clippedBp: 0,
+        largestInsertedBp: 27,
+        largestSkippedBp: 0,
+      },
+    ])
+  })
+
+  test('a skip under the threshold is stated as the largest skipped', () => {
+    const result = fold(
+      { a: 100, b: 30, c: 100, d: 10, e: 100 },
+      ['a b c d e', 'a c e'],
+      { threshold: 50 },
+    )
+    expect(result.walks[1]!.steps).toEqual([
+      {
+        step: 0,
+        node: 'a~e',
+        insertedBp: 0,
+        skippedBp: 40,
+        clippedBp: 0,
+        largestInsertedBp: 0,
+        largestSkippedBp: 30,
+      },
+    ])
+  })
+
+  test('foldProblems finds a run or a skip hidden at or over the threshold', () => {
+    const { nodes, tracks } = graph(site, walks)
+    const result = foldGraph(nodes, tracks, { threshold: 472 })
+    const hiding = (largest: Partial<FoldedStep>) =>
+      result.folded &&
+      foldProblems(nodes, tracks, {
+        ...result,
+        walks: result.walks.map((walk, w) =>
+          w === 1
+            ? {
+                ...walk,
+                steps: walk.steps.map((step, s) =>
+                  s === 0 ? { ...step, ...largest } : step,
+                ),
+              }
+            : walk,
+        ),
+      })
+    expect(hiding({})).toEqual([])
+    expect(hiding({ largestInsertedBp: 472 })).toEqual([
+      'hap1 hides 472 bp off the reference in a, not under the threshold of 472 bp',
+    ])
+    expect(hiding({ largestSkippedBp: 500 })).toEqual([
+      'hap1 hides a skip of 500 bp of the reference in a, not under the threshold of 472 bp',
+    ])
   })
 })

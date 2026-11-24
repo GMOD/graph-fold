@@ -45,6 +45,8 @@ interface Visit {
   extra: number
   clipped: number
   original?: number
+  largestHidden: number
+  largestSkipped: number
 }
 
 interface BranchTally {
@@ -498,6 +500,13 @@ function foldWindow<T extends InputTrack>(
         visit.original += bp
       }
     }
+    const hide = (visit: Visit, from: number, to: number) => {
+      absorb(visit, from, to)
+      visit.largestHidden = Math.max(
+        visit.largestHidden,
+        prefix[to]! - prefix[from]!,
+      )
+    }
     const ownVisit = (node: string, length: number, reversed: boolean) => {
       const visit: Visit = {
         node,
@@ -507,6 +516,8 @@ function foldWindow<T extends InputTrack>(
         extra: 0,
         clipped: 0,
         original: 0,
+        largestHidden: 0,
+        largestSkipped: 0,
       }
       return visit
     }
@@ -542,7 +553,7 @@ function foldWindow<T extends InputTrack>(
         }))
       } else {
         if (fallback !== undefined && to > from) {
-          absorb(fallback, from, to)
+          hide(fallback, from, to)
         }
       }
     }
@@ -783,6 +794,8 @@ function foldWindow<T extends InputTrack>(
             clipped:
               segment.length -
               refBp(Math.max(from, segment.start), Math.min(to, segment.end)),
+            largestHidden: 0,
+            largestSkipped: 0,
           }
           bySegment.set(s, visit)
           elements.push(visit)
@@ -813,11 +826,27 @@ function foldWindow<T extends InputTrack>(
       let home = runVisits[0]!
       run.anchors.forEach((anchor, pair) => {
         if (pair > 0) {
-          absorb(
-            byPair.get(pair) ?? home,
-            run.anchors[pair - 1]!.step + 1,
-            anchor.step,
+          const before = run.anchors[pair - 1]!
+          const drawnAs = byPair.get(pair)
+          if (drawnAs === undefined) {
+            hide(home, before.step + 1, anchor.step)
+          } else {
+            absorb(drawnAs, before.step + 1, anchor.step)
+          }
+          const left = Math.min(before.ref, anchor.ref) + 1
+          const right = Math.max(before.ref, anchor.ref)
+          const skipDrawn = run.drawn.some(
+            d => d.pair === pair && d.right > d.left,
           )
+          if (!skipDrawn && right > left) {
+            for (const s of segmentsIn(left, right)) {
+              const visit = bySegment.get(s) ?? home
+              visit.largestSkipped = Math.max(
+                visit.largestSkipped,
+                refBp(left, right),
+              )
+            }
+          }
         }
         const visit = covered.some(
           ([from, to]) => anchor.ref >= from && anchor.ref < to,
@@ -870,14 +899,29 @@ function foldWindow<T extends InputTrack>(
 
     const foldedSteps: FoldedStep[] = visits.flatMap((visit, step) => {
       const { node, length, walked, extra, clipped, original } = visit
+      const { largestHidden, largestSkipped } = visit
       const insertedBp =
         original === undefined ? extra : Math.max(0, original - length)
       const skippedBp =
         original === undefined
           ? length - clipped - walked
           : Math.max(0, length - original)
-      return insertedBp > 0 || skippedBp > 0 || clipped > 0
-        ? [{ step, node, insertedBp, skippedBp, clippedBp: clipped }]
+      return insertedBp > 0 ||
+        skippedBp > 0 ||
+        clipped > 0 ||
+        largestHidden > 0 ||
+        largestSkipped > 0
+        ? [
+            {
+              step,
+              node,
+              insertedBp,
+              skippedBp,
+              clippedBp: clipped,
+              largestInsertedBp: largestHidden,
+              largestSkippedBp: largestSkipped,
+            },
+          ]
         : []
     })
     const total = (pick: (step: FoldedStep) => number) =>
