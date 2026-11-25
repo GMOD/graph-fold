@@ -881,6 +881,29 @@ describe('clustering near-equal alleles', () => {
     })
   })
 
+  // HLA-II: 927 and 935 bp in place of 3,852 bp of GRCh38 drew as a node
+  // labelled 3.9 kb
+  test('a clustered replacement spans its alleles own lengths, and its label says what they replace', () => {
+    const result = fold(
+      { a: 500, d: 3852, c: 500, x: 927, y: 935 },
+      ['a d c', 'a x c', 'a y c'],
+      { threshold: 50, cluster: true },
+    )
+    const [branch] = result.branches
+    expect(branch?.cluster).toEqual({
+      members: 2,
+      minLength: 927,
+      maxLength: 935,
+      haplotypes: 2,
+    })
+    expect(
+      result.nodes.find(node => node.kind === 'branch')?.cluster,
+    ).toMatchObject({ minLength: 927, maxLength: 935 })
+    expect(branchLabel(branch!, result.haplotypes)).toBe(
+      'replacement 927 bp to 935 bp for 3.9 kb (cluster of 2 lengths), 2 of 3',
+    )
+  })
+
   test('the tolerance decides what joins', () => {
     const result = fold(
       lengths,

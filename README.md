@@ -237,6 +237,7 @@ Every renderer should print the same text, so the package makes it:
 - `branchLabel(branch, fold.haplotypes)`: `deletion 45.5 kb, 306 of 464`,
   `replacement 15.7 kb for 6.3 kb, 1 of 464`, and for a cluster its range and
   member count, `insertion 8.9 kb to 9.5 kb (cluster of 56 lengths), 129 of 464`
+  or `replacement 927 bp to 935 bp for 3.9 kb (cluster of 2 lengths), 2 of 3`
 - `variationLabel(track)`:
   `439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`
 - `bpLabel(bp)`: `584 bp`, `45.5 kb`
@@ -324,7 +325,8 @@ One site of the chr1 window has insertions of 56 lengths from 8.9 to 9.5 kb on
   most carried allele is drawn, the others take its node
 - Every clustered branch, and its node, carries
   `cluster: { members, minLength, maxLength, haplotypes }`, and the branch lists
-  its `alleles`
+  its `alleles`. `minLength` and `maxLength` are the shortest and longest
+  allele's own bp: what it inserts, or what it deletes where it inserts nothing
 - A walk drawn through a cluster keeps the difference in its `steps`, so its bp
   still reconcile
 - Inversions are not clustered

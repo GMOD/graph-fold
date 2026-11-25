@@ -901,7 +901,9 @@ function foldWindow<T extends InputTrack>(
         haplotypes: haplotypesIn(carried),
       }),
     )
-    const sizes = alleles.map(a => Math.max(a.insertedBp, a.deletedBp))
+    const sizes = alleles.map(a =>
+      a.insertedBp > 0 ? a.insertedBp : a.deletedBp,
+    )
     const info: ClusterInfo | undefined =
       tally !== undefined && alleles.length > 1
         ? {

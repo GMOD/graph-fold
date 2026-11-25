@@ -14,10 +14,12 @@ export function branchLabel(branch: Branch, haplotypes: number) {
   const { cluster, insertedBp, deletedBp, length } = branch
   const shortest = cluster ? bpLabel(cluster.minLength) : ''
   const longest = cluster ? bpLabel(cluster.maxLength) : ''
+  const replaced =
+    insertedBp > 0 && deletedBp > 0 ? ` for ${bpLabel(deletedBp)}` : ''
   const size = cluster
     ? shortest === longest
-      ? `about ${longest}`
-      : `${shortest} to ${longest}`
+      ? `about ${longest}${replaced}`
+      : `${shortest} to ${longest}${replaced}`
     : insertedBp > 0 && deletedBp > 0
       ? `${bpLabel(insertedBp)} for ${bpLabel(deletedBp)}`
       : bpLabel(length)
