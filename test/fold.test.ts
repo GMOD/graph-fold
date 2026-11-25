@@ -12,7 +12,6 @@ import {
 
 import type {
   FoldOptions,
-  Folded,
   FoldedStep,
   InputNode,
   InputTrack,
@@ -220,6 +219,34 @@ describe('detours at or over the threshold', () => {
         largestSkippedBp: 3,
       },
     ])
+  })
+})
+
+// H-AMY1 and HLA-II: a stretch a cut did not load was kept as one walk's own
+// node, so the fold drew each such site twice and the host dropped thickness
+describe('a stretch the caller did not load', () => {
+  test('folds as the loaded allele of its length at its site, one branch of two walks', () => {
+    const { nodes, tracks } = graph({ r1: 100, r2: 100, x: 300, p: 300 }, [
+      'r1 r2',
+      'r1 x r2',
+      'r1 p r2',
+    ])
+    const marked = nodes.map(node =>
+      node.name === 'p' ? { ...node, placeholder: true } : node,
+    )
+    const result = foldGraph(marked, tracks, { threshold: 50 })
+    expect(foldProblems(marked, tracks, result)).toEqual([])
+    expect(
+      result.folded
+        ? result.nodes.filter(node => node.kind === 'branch')
+        : result.reason,
+    ).toEqual([
+      expect.objectContaining({ name: 'ins:r1:300', sequenceLength: 300 }),
+    ])
+    expect(result.folded && result.branches).toMatchObject([
+      { insertedBp: 300, haplotypes: 2 },
+    ])
+    expect(sequences(result)).toEqual(['r1 r2', 'r1 ins:r1:300 r2'])
   })
 })
 
@@ -1308,143 +1335,6 @@ describe('fragments of one haplotype', () => {
       '2 haplotypes went in and the result counts 3',
       'S#1#contigA counts 2 haplotypes and its walks are 1',
     ])
-  })
-})
-
-describe('stretches the cut did not load', () => {
-  function foldNotLoaded(
-    lengths: Record<string, number>,
-    notLoaded: string[],
-    walks: string[],
-    options: FoldOptions,
-  ) {
-    const { nodes, tracks } = graph(lengths, walks)
-    const marked = nodes.map(node =>
-      notLoaded.includes(node.name) ? { ...node, placeholder: true } : node,
-    )
-    const result = foldGraph(marked, tracks, options)
-    expect(foldProblems(marked, tracks, result)).toEqual([])
-    if (!result.folded) {
-      throw new Error(result.reason)
-    }
-    return result
-  }
-  const flagged = (result: Folded) =>
-    result.nodes.filter(node => node.placeholder).map(node => node.name)
-
-  test('an insertion through a stretch not loaded is a node of its walk alone, on a track of its own', () => {
-    const result = foldNotLoaded(
-      { a: 100, b: 100, x: 500, p: 500 },
-      ['p'],
-      ['a b', 'a x b', 'a p b'],
-      { threshold: 50 },
-    )
-    expect(sequences(result)).toEqual([
-      'a b',
-      'a ins:a:500 b',
-      'a ins:a:500@2 b',
-    ])
-    expect(flagged(result)).toEqual(['ins:a:500@2'])
-    expect(result.members['ins:a:500@2']).toEqual(['p'])
-    expect(
-      result.branches.map(b => [b.description, b.nodes, b.tracks]),
-    ).toEqual([
-      ['insertion', ['ins:a:500'], [1]],
-      ['insertion', ['ins:a:500@2'], [2]],
-    ])
-  })
-
-  test('a not-loaded allele never joins a cluster with a loaded one', () => {
-    const result = foldNotLoaded(
-      { a: 500, b: 500, x: 94_133, p: 97_028 },
-      ['p'],
-      ['a b', 'a x b', 'a x b', 'a p b'],
-      { threshold: 1889, cluster: true },
-    )
-    expect(sequences(result)).toEqual([
-      'a b',
-      'a ins:a:94133 b',
-      'a ins:a:97028@3 b',
-    ])
-    expect(flagged(result)).toEqual(['ins:a:97028@3'])
-    expect(result.nodes.some(node => node.cluster !== undefined)).toBe(false)
-    expect(result.walks[3]).toMatchObject({ foldedBp: 98_028 })
-  })
-
-  test('two not-loaded stretches at one site are two nodes', () => {
-    const result = foldNotLoaded(
-      { a: 100, b: 100, p: 500, q: 500 },
-      ['p', 'q'],
-      ['a b', 'a p b', 'a q b'],
-      { threshold: 50 },
-    )
-    expect(flagged(result)).toEqual(['ins:a:500@1', 'ins:a:500@2'])
-    expect(result.tracks).toHaveLength(3)
-  })
-
-  test('one under the threshold folds into the reference as any run does', () => {
-    const result = foldNotLoaded(
-      { a: 100, b: 100, p: 20 },
-      ['p'],
-      ['a b', 'a p b'],
-      { threshold: 50 },
-    )
-    expect(sequences(result)).toEqual(['a~b', 'a~b'])
-    expect(flagged(result)).toEqual([])
-  })
-
-  test('at a walk end, and on a walk that never meets the reference, it is a node of that walk', () => {
-    const result = foldNotLoaded(
-      { a: 100, b: 100, p: 30, q: 30, r: 30 },
-      ['p', 'r'],
-      ['a b', 'p a b', 'q a b', 'r'],
-      { threshold: 50 },
-    )
-    expect(sequences(result)).toEqual([
-      'a~b',
-      'lead:a:30@1 a~b',
-      'lead:a:30 a~b',
-      'r',
-    ])
-    expect(flagged(result)).toEqual(['lead:a:30@1', 'r'])
-  })
-
-  test('inside a boxed inversion it is the walk’s own copy', () => {
-    const result = foldNotLoaded(
-      { a: 100, b: 100, c: 100, d: 100, p: 200 },
-      ['p'],
-      ['a b c d', 'a -c p -b d'],
-      { threshold: 50, inversions: 'box' },
-    )
-    expect(sequences(result)).toEqual([
-      'a b c d',
-      'a inv:c inv:ins:b:200@1 inv:b d',
-    ])
-    expect(flagged(result)).toEqual(['inv:ins:b:200@1'])
-  })
-
-  test('nothing changes where no node is flagged', () => {
-    const window: { nodes: InputNode[]; tracks: InputTrack[] } = JSON.parse(
-      readFileSync(
-        new URL('fixtures/chr15-92768150-92768700.json', import.meta.url),
-        'utf8',
-      ),
-    )
-    const unflagged = window.nodes.map(node => ({
-      ...node,
-      placeholder: false,
-    }))
-    for (const cluster of [false, true]) {
-      expect(
-        JSON.stringify(
-          foldGraph(unflagged, window.tracks, { threshold: 50, cluster }),
-        ),
-      ).toBe(
-        JSON.stringify(
-          foldGraph(window.nodes, window.tracks, { threshold: 50, cluster }),
-        ),
-      )
-    }
   })
 })
 

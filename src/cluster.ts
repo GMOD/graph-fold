@@ -2,13 +2,10 @@ export interface Site {
   left: number
   right: number
   inserted: number
-  walk?: number
 }
 
-export function siteKey({ left, right, inserted, walk }: Site) {
-  return walk === undefined
-    ? `${left}:${right}:${inserted}`
-    : `${left}:${right}:${inserted}:${walk}`
+export function siteKey({ left, right, inserted }: Site) {
+  return `${left}:${right}:${inserted}`
 }
 
 function near(a: Site, b: Site, offsets: number[], tolerance: number) {

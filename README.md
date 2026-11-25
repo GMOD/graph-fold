@@ -52,10 +52,8 @@ if (fold.folded) {
 }
 ```
 
-- `nodes` are `{ name, sequenceLength, placeholder }`; a node with `seq` and no
-  `sequenceLength` takes its length from `seq`. `placeholder` marks a stretch of
-  a walk whose nodes the caller did not load, see
-  [Stretches not loaded](#stretches-not-loaded)
+- `nodes` are `{ name, sequenceLength }`; a node with `seq` and no
+  `sequenceLength` takes its length from `seq`
 - `tracks` are
   `{ name, sequence, freq, haplotype, indexOfFirstBase, sourceTrackID }`, where
   `sequence` lists node names with a `-` prefix for a reversed step, `freq`
@@ -82,17 +80,11 @@ if (fold.folded) {
 ## Stretches not loaded
 
 A caller that cuts a window from a larger file may leave some stretches of a
-walk unread and stand one node in for each, with the stretch's length. Mark such
-a node `placeholder: true`. Two walks with the same length at the same site are
-one branch when their sequence is read, but two stretches not read are not known
-to be alike, so:
-
-- A detour or a walk end that holds a stretch not loaded, at or over the
-  threshold, is a node of that walk alone, named with `@` and the walk's index,
-  and flagged `placeholder`. It is never clustered with another allele, so the
-  walk is a track of its own there
-- One under the threshold folds into the reference as any detour does
-- With no node marked, the result is the same as before the field existed
+walk unread and stand one node in for each, with the stretch's length. The fold
+names a branch by its site and its bp and never reads the nodes inside it, so
+such a node folds exactly as the loaded nodes it stands for would: the same
+branch, shared with any other walk of that length at that site, and the same
+cluster.
 
 ## Fragments
 
@@ -184,9 +176,8 @@ const named = tracks.map(t => ({
 ### Folded
 
 - `nodes`:
-  `{ name, sequenceLength, kind, refStart, refEnd, cluster, invertedOf, placeholder }`,
-  `kind` being `reference` for a backbone node and `branch` for any other, and
-  `placeholder` set on a node that holds a stretch not loaded
+  `{ name, sequenceLength, kind, refStart, refEnd, cluster, invertedOf }`,
+  `kind` being `reference` for a backbone node and `branch` for any other
 - `tracks`: the reference first, then one per distinct folded walk. Each is its
   first input walk's own fields, `sourceTrackID` among them, with these set:
   - `id`: its index in `tracks`

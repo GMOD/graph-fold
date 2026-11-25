@@ -2,7 +2,6 @@ export interface InputNode {
   name: string
   sequenceLength?: number
   seq?: string
-  placeholder?: boolean
 }
 
 export interface InputTrack {
@@ -38,7 +37,6 @@ export interface FoldedNode {
   refEnd?: number
   cluster?: ClusterInfo
   invertedOf?: string
-  placeholder?: true
 }
 
 export interface BpSpread {
