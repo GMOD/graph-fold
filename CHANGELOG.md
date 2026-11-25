@@ -1,3 +1,24 @@
+## [1.2.0](https://github.com/GMOD/graph-fold/compare/v1.1.0...v1.2.0) (2026-11-25)
+
+### Bug Fixes
+
+- A stretch a cut did not load is a node of its own walk, flagged placeholder, never shared with another walk's allele at its site nor clustered with one, so a not-loaded 97 kb no longer draws as a loaded 94 kb two walks wide ([e527f13](https://github.com/GMOD/graph-fold/commit/e527f1364ea4ffae1d52dd08deaf0530648f4347))
+- A stretch the caller did not load folds as the loaded allele of its length at its site, since a branch is named by site and bp, so a not-loaded stretch no longer draws its site twice; reverts e527f13 ([e1997b2](https://github.com/GMOD/graph-fold/commit/e1997b2d331075f3c61bcc62b68497df1b534973))
+- A cluster's minLength and maxLength are its alleles' own bp, what each inserts or else deletes, and a clustered replacement's label says what it replaces, so 927 and 935 bp in place of 3.9 kb no longer span 3,852 bp ([705d665](https://github.com/GMOD/graph-fold/commit/705d6655125f6c9410f5a4d350f68d444ccdc22e))
+
+### Documentation
+
+- Name a haplotype only on a track that is one walk ([834e88b](https://github.com/GMOD/graph-fold/commit/834e88b69777024f799307f47c8a79a26c19c241))
+- Say how a stretch not loaded folds, and what a step's largest hidden pieces are ([47e6ce0](https://github.com/GMOD/graph-fold/commit/47e6ce097ecfdfb6bf06122e386b990e33731190))
+
+### Features
+
+- Each folded step states the largest piece off the reference and the largest skip of it that the fold hid there, and foldProblems fails where either reaches the threshold ([183b2e5](https://github.com/GMOD/graph-fold/commit/183b2e5d7f0937fb67ef4157b2b7c1fcbbfca785))
+
+### Styling
+
+- Format the not-loaded and hidden-piece changes ([a747615](https://github.com/GMOD/graph-fold/commit/a747615f7d2ca539b950b63a0bfb4b03780e2376))
+
 ## [1.1.0](https://github.com/GMOD/graph-fold/compare/v1.0.1...v1.1.0) (2026-11-23)
 
 ### Features
