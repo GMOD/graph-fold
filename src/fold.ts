@@ -253,8 +253,10 @@ function foldWindow<T extends InputTrack>(
     const table = starts ? ends?.before : ends?.after
     const pos = table?.pos[index] ?? Number.NaN
     const outside = pos <= refPos(0) || pos >= refPos(refSteps.length)
+    const kind = table?.kinds[index]
     const departs =
-      table?.kinds[index] === 'departure' && table.missingBp[index] === 0
+      (kind === 'beyond' || kind === 'elsewhere') &&
+      table?.missingBp[index] === 0
     const outsideLeft = starts !== run.reversed
     const boundary = outsideLeft ? run.start : run.end
     const at = refPos(boundary)
@@ -326,6 +328,8 @@ function foldWindow<T extends InputTrack>(
     })
     const firstRun = runs[0]
     const lastRun = runs.at(-1)
+    const told = (kind: string | undefined) =>
+      kind === undefined || kind === 'ends'
     return index === reference
       ? []
       : [
@@ -336,6 +340,10 @@ function foldWindow<T extends InputTrack>(
             steps,
             prefix,
             runs,
+            told: [
+              told(ends?.before.kinds[index]),
+              told(ends?.after.kinds[index]),
+            ],
             opens: [
               firstRun === undefined
                 ? undefined
@@ -855,7 +863,9 @@ function foldWindow<T extends InputTrack>(
       const leadNode = leadOpen === undefined ? undefined : reportOpen(leadOpen)
       if (before === undefined) {
         if (leadOpen === undefined) {
-          walkEnd(entered, !run.reversed, true)
+          if (walk.told[0] === true) {
+            walkEnd(entered, !run.reversed, true)
+          }
           stretch(
             `lead:${refNameAt(first.ref)}`,
             'sequence off the reference before the walk first meets it',
@@ -1032,7 +1042,9 @@ function foldWindow<T extends InputTrack>(
             left,
             undefined,
           )
-          walkEnd(left, run.reversed, false)
+          if (walk.told[1] === true) {
+            walkEnd(left, run.reversed, false)
+          }
         } else if (tailNode !== undefined) {
           openVisit(tailOpen, tailNode, last.step + 1, steps.length)
         } else if (steps.length > last.step + 1) {

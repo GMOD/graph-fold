@@ -130,7 +130,7 @@ function expanded<T extends WalkFields>(input: RunsInput<T>) {
 
 function afterReference(table: EndTable) {
   const shifted: EndTable = {
-    kinds: ['unknown', ...table.kinds],
+    kinds: ['ends', ...table.kinds],
     pos: [Number.NaN, ...Array.from(table.pos)],
     reversed: [0, ...Array.from(table.reversed)],
     ownBp: [0, ...Array.from(table.ownBp)],

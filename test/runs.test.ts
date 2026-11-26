@@ -42,7 +42,7 @@ function agrees(
   const { input, tracks: ordered } = stepsToRuns(nodes, tracks, reference)
   const { reference: _, ...rest } = options
   const withReference = (table: EndTable) => ({
-    kinds: ['unknown' as const, ...table.kinds],
+    kinds: ['ends' as const, ...table.kinds],
     pos: [0, ...Array.from(table.pos)],
     reversed: [0, ...Array.from(table.reversed)],
     ownBp: [0, ...Array.from(table.ownBp)],

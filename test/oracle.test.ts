@@ -193,15 +193,13 @@ describe('foldGraph agrees with the 1.2.0 oracle', () => {
     }
   }, 60_000)
 
-  test('on 3,000 seeded random graphs given ends of no departure the fold reads', () => {
+  test("on 3,000 seeded random graphs given every end as the walk's true end", () => {
     for (let seed = 1; seed <= 3000; seed++) {
       const { nodes, tracks, options } = randomGraph(seed)
       const ends = randomEnds(seed, tracks.length, 0, 100_000)
       const unread = (table: EndTable) => ({
         ...table,
-        kinds: table.kinds.map((kind, t) =>
-          kind === 'departure' && table.missingBp[t] === 0 ? 'end' : kind,
-        ),
+        kinds: table.kinds.map(() => 'ends' as const),
       })
       try {
         agrees(nodes, tracks, options, {

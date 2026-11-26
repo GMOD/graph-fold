@@ -30,7 +30,7 @@ const reference: InputTrack = {
 
 function table(ends: (End | undefined)[]) {
   const result: EndTable = {
-    kinds: ends.map(end => end?.kind ?? 'unknown'),
+    kinds: ends.map(end => end?.kind ?? 'ends'),
     pos: ends.map(end => end?.pos ?? Number.NaN),
     reversed: ends.map(end => Number(end?.reversed ?? false)),
     ownBp: ends.map(end => end?.ownBp ?? 0),
@@ -76,7 +76,7 @@ describe('a walk that leaves the reference outside the window', () => {
     const { result, labels, sequences } = foldEnds([
       {
         sequence: 'c d',
-        before: { kind: 'departure', pos: 8000, ownBp: 0 },
+        before: { kind: 'beyond', pos: 8000, ownBp: 0 },
       },
     ])
     expect(labels).toEqual(['deletion 4 kb, 1 of 2, continues past the window'])
@@ -99,11 +99,11 @@ describe('a walk that leaves the reference outside the window', () => {
     const { result, labels, sequences } = foldEnds([
       {
         sequence: 'a b',
-        after: { kind: 'departure', pos: 15_000, ownBp: 2363 },
+        after: { kind: 'beyond', pos: 15_000, ownBp: 2363 },
       },
       {
         sequence: 'a b x',
-        after: { kind: 'departure', pos: 15_000, ownBp: 2363 },
+        after: { kind: 'beyond', pos: 15_000, ownBp: 2363 },
       },
     ])
     expect(labels).toEqual([
@@ -151,11 +151,11 @@ describe('a walk that leaves the reference outside the window', () => {
     const { result, labels, sequences } = foldEnds([
       {
         sequence: '-b -a',
-        before: { kind: 'departure', pos: 15_000, reversed: true, ownBp: 0 },
+        before: { kind: 'beyond', pos: 15_000, reversed: true, ownBp: 0 },
       },
       {
         sequence: '-d -c',
-        after: { kind: 'departure', pos: 9000, reversed: true, ownBp: 600 },
+        after: { kind: 'beyond', pos: 9000, reversed: true, ownBp: 600 },
       },
     ])
     expect(labels).toEqual([
@@ -173,11 +173,11 @@ describe('a walk that leaves the reference outside the window', () => {
     const { labels } = foldEnds([
       {
         sequence: 'a b',
-        after: { kind: 'departure', pos: 15_000, reversed: true, ownBp: 0 },
+        after: { kind: 'elsewhere', pos: 15_000, reversed: true, ownBp: 0 },
       },
       {
         sequence: 'c d',
-        before: { kind: 'departure', pos: 15_000, ownBp: 800 },
+        before: { kind: 'elsewhere', pos: 15_000, ownBp: 800 },
       },
     ])
     expect(labels).toEqual([
@@ -190,19 +190,19 @@ describe('a walk that leaves the reference outside the window', () => {
     const walks = [
       {
         sequence: 'a b',
-        after: { kind: 'departure' as const, pos: 15_000, ownBp: 935 },
+        after: { kind: 'beyond' as const, pos: 15_000, ownBp: 935 },
       },
       {
         sequence: 'a b',
-        after: { kind: 'departure' as const, pos: 15_000, ownBp: 935 },
+        after: { kind: 'beyond' as const, pos: 15_000, ownBp: 935 },
       },
       {
         sequence: 'a b',
-        after: { kind: 'departure' as const, pos: 15_000, ownBp: 927 },
+        after: { kind: 'beyond' as const, pos: 15_000, ownBp: 927 },
       },
       {
         sequence: 'a b',
-        after: { kind: 'departure' as const, pos: 16_000, ownBp: 935 },
+        after: { kind: 'beyond' as const, pos: 16_000, ownBp: 935 },
       },
     ]
     expect(foldEnds(walks).labels).toEqual([
@@ -222,32 +222,45 @@ describe('a walk that leaves the reference outside the window', () => {
   })
 })
 
-describe('ends the fold leaves as they were', () => {
+describe('ends the fold does not draw', () => {
   const starts = (before: End) => foldEnds([{ sequence: 'c d', before }]).labels
 
   test('a walk that truly starts inside the window says so', () => {
-    expect(starts({ kind: 'end', pos: Number.NaN })).toEqual([
+    expect(starts({ kind: 'ends', pos: Number.NaN })).toEqual([
       'walk starts inside the window 2 kb, 1 of 2',
     ])
   })
 
-  test('a departure with bp the file lacks, one whose far end is inside the window, and one not known', () => {
+  test('an end on the edge of what was read, a departure with bp the file lacks, and one whose far end is inside the window say nothing', () => {
     for (const end of [
-      { kind: 'departure' as const, pos: 8000, missingBp: 10 },
-      { kind: 'departure' as const, pos: 11_000 },
-      { kind: 'unknown' as const, pos: 8000 },
+      { kind: 'edge' as const, pos: Number.NaN },
+      { kind: 'beyond' as const, pos: 8000, missingBp: 10 },
+      { kind: 'elsewhere' as const, pos: 11_000 },
     ]) {
-      expect(starts(end)).toEqual([
-        'walk starts inside the window 2 kb, 1 of 2',
+      const { result, labels, sequences } = foldEnds([
+        { sequence: 'c d', before: end },
       ])
+      expect(labels).toEqual([])
+      expect(sequences).toEqual(['a~b c~d', 'c~d'])
+      expect(result.walks[1]!.steps).toEqual([])
     }
+  })
+
+  test('says nothing on the edge, and keeps what the walk has of its own there', () => {
+    const { labels, sequences } = foldEnds([
+      { sequence: 'y c d', before: { kind: 'edge', pos: Number.NaN } },
+    ])
+    expect(labels).toEqual([
+      'sequence off the reference before the walk first meets it 5 bp, 1 of 2',
+    ])
+    expect(sequences).toEqual(['a~b c~d', 'lead:c:5 c~d'])
   })
 
   test('a departure under the threshold draws nothing, and its few bp in the window fold into the reference', () => {
     const { result, bare, labels, sequences } = foldEnds([
       {
         sequence: 'y a b c d',
-        before: { kind: 'departure', pos: 9995, ownBp: 5 },
+        before: { kind: 'beyond', pos: 9995, ownBp: 5 },
       },
     ])
     expect(labels).toEqual([])
