@@ -182,7 +182,7 @@ describe('a walk that leaves the reference outside the window', () => {
     ])
     expect(labels).toEqual([
       'rejoins the reference outside the window, reversed, 1 of 3, continues past the window',
-      'leaves the reference outside the window, out of order 800 bp, 1 of 3, continues past the window',
+      'leaves the reference outside the window, out of order, 800 bp of its own, 1 of 3, continues past the window',
     ])
   })
 

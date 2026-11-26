@@ -27,7 +27,15 @@ export function branchLabel(branch: Branch, haplotypes: number) {
     ? ` (cluster of ${plural(cluster.members, 'length')})`
     : ''
   const cut = branch.open ? ', continues past the window' : ''
-  const sized = cluster === undefined && length === 0 ? '' : ` ${size}`
+  const farEnd =
+    branch.beyond !== undefined &&
+    branch.kind === 'other' &&
+    branch.description !== 'replacement'
+  const sized = farEnd
+    ? insertedBp > 0
+      ? `, ${bpLabel(insertedBp)} of its own`
+      : ''
+    : ` ${size}`
   return `${branch.description}${sized}${lengths}, ${branch.haplotypes} of ${haplotypes}${cut}`
 }
 
