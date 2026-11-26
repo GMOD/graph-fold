@@ -1,22 +1,24 @@
 # @jbrowse/graph-fold
 
-graph-fold merges the small variation of a pangenome graph window into its
-reference, so a sequence tube map of the window shows its structural variants.
+A pangenome graph stores many people's genomes on top of one reference genome.
+Drawn as a tube map, every difference between them, even a single letter,
+becomes a branch of its own, so a few thousand bases of DNA turn into thousands
+of pieces and the large changes, the structural variants, are lost among them.
 
-- **In:** the nodes and tracks a tube map is laid out from, as
+graph-fold merges every difference smaller than a threshold into the reference
+and keeps the large ones, so the picture shows only what matters:
+
+![Before: three genomes full of tiny wiggles around a reference. After graph-fold: straight lines with one deletion and one insertion left](docs/hero.svg)
+
+- **In:** the nodes and tracks of a tube map, as
   [@jbrowse/tubemap-core](https://github.com/GMOD/tubemap-core)'s
   `layoutTubeMap` takes them, with the reference as the first track
-- **Out:** fewer nodes and tracks in the same shape, plus what each merged node
-  holds, the kept branches with their carriers, and what was folded away on each
-  walk
-- It reads node lengths and never a base, and has no dependencies
+- **Out:** fewer nodes and tracks in the same shape, plus the kept branches, who
+  carries each one, and what was smoothed away on each walk
+- It reads node lengths, never a base, and has no dependencies
 
-A 21 kb window of the HPRC v2.1 Minigraph-Cactus graph,
-chr16:75,204,000-75,225,000, is 1,655 nodes. Folded at 1000 bp it is 3, and the
-inversion 439 of its 464 haplotypes carry is a tube that loops back through the
-block:
-
-![chr16 folded at 1000 bp: the carriers' tube loops back through the 16.6 kb block](docs/chr16-inversion-fold-1000.png)
+Real windows of 464 human genomes, before and after, are in
+[Windows folded](docs/windows.md).
 
 ## Install
 
@@ -71,7 +73,7 @@ if (fold.folded) {
   loaded, inversions, clustering and the gate that refuses a window
 - [The result](docs/result.md): every field of `FoldResult`, the label helpers,
   `foldProblems`, what a tube hides and drawing conventions
-- [Windows folded](docs/windows.md): HPRC windows before and after, with
+- [Windows folded](docs/windows.md): real HPRC windows before and after, with
   pictures and the numbers `pnpm prove` checks
 - [Limits](docs/limits.md): what the fold does not tell apart
 - [Migrating to 0.1.0](docs/migrating-to-0.1.0.md)

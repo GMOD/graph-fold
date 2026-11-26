@@ -1,5 +1,24 @@
 # Windows folded
 
+## At a glance
+
+A 21 kb window of the HPRC v2.1 Minigraph-Cactus graph,
+chr16:75,204,000-75,225,000, is 1,655 nodes. Folded at 1000 bp it is 3, and the
+inversion 439 of its 464 haplotypes carry is a tube that loops back through the
+block:
+
+![chr16 folded at 1000 bp: the carriers' tube loops back through the 16.6 kb block](chr16-inversion-fold-1000.png)
+
+A 51 kb window, chr1:72,298,000-72,349,000, lays out 1,381 columns and 114,413
+px wide:
+
+![The chr1 window before folding: a hairline at 1.2% scale, and its first screen](chr1-deletion-before.png)
+
+Folded at 1000 bp with clustering it is 8 nodes in 7 columns, and the 306
+haplotypes with the deletion pass over 45.5 kb of reference without reading it:
+
+![The chr1 window folded at 1000 bp with clustering: the 45.5 kb deletion and the 9.3 kb insertion site](chr1-deletion-fold-1000-clustered.png)
+
 ## Three windows
 
 HPRC v2.1 Minigraph-Cactus, GRCh38, 464 haplotypes, cut with graph-walks' figure

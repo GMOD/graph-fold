@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 780" width="960" height="780" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<style>
+.h { font-size: 20px; font-weight: 700; fill: #111 }
+.s { font-size: 15px; fill: #444 }
+.l { font-size: 13px; fill: #222 }
+.n { font-size: 15px; font-style: italic; fill: #333 }
+.pill { fill: #f3f0ff; stroke: #7c3aed; stroke-width: 2 }
+.pt { font-size: 18px; font-weight: 700; fill: #5b21b6 }
+.ps { font-size: 14px; fill: #4c1d95 }
+.arr { fill: none; stroke: #7c3aed; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round }
+</style>
+<rect width="960" height="780" rx="12" fill="#fff"/>
+<text x="40" y="30" class="h">Before: a pangenome graph</text>
+<text x="40" y="54" class="s">Each coloured line is one person’s genome. Every small difference, even one letter, gets its own wiggle.</text>
+<text x="40" y="138" class="l">reference genome</text>
+<line x1="40" y1="150" x2="920" y2="150" stroke="#222" stroke-width="8" stroke-linecap="round"/>
+<path d="M40 174 L60 174 Q67.0 162 74 174 L79 174 Q91.0 186 103 174 L99 174 Q104.0 148 109 174 L117 174 Q129.0 192 141 174 L139 174 Q144.0 156 149 174 L165 174 Q174.0 162 183 174 L195 174 Q202.0 208 209 174 L214 174 Q223.0 156 232 174 L232 174 Q241.0 208 250 174 L254 174 Q261.0 156 268 174 L276 174 Q285.0 200 294 174 L305 174 Q314.0 148 323 174 L332 174 Q341.0 200 350 174 L356 174 Q363.0 156 370 174 L377 174 Q389.0 162 401 174 L396 174 Q405.0 148 414 174 L430 174 C490 244 590 244 650 174 L670 174 Q682.0 186 694 174 L690 174 Q697.0 162 704 174 L712 174 Q717.0 148 722 174 L730 174 Q742.0 200 754 174 L832 174 Q844.0 200 856 174 L855 174 Q862.0 200 869 174 L876 174 Q881.0 186 886 174 L920 174" fill="none" stroke="#2563eb" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M40 190 L69 190 Q81.0 178 93 190 L89 190 Q98.0 202 107 190 L118 190 Q127.0 216 136 190 L144 190 Q151.0 178 158 190 L163 190 Q168.0 216 173 190 L184 190 Q193.0 224 202 190 L211 190 Q218.0 164 225 190 L234 190 Q241.0 178 248 190 L259 190 Q264.0 164 269 190 L282 190 Q287.0 178 292 190 L311 190 Q320.0 164 329 190 L334 190 Q343.0 178 352 190 L354 190 Q366.0 224 378 190 L381 190 Q386.0 178 391 190 L408 190 Q415.0 202 422 190 L430 190 C490 248 590 248 650 190 L677 190 Q684.0 178 691 190 L707 190 Q716.0 178 725 190 L760 190 C750 115 810 115 800 190 L823 190 Q830.0 164 837 190 L841 190 Q846.0 164 851 190 L870 190 Q877.0 208 884 190 L920 190" fill="none" stroke="#ea580c" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M40 206 L78 206 Q85.0 224 92 206 L96 206 Q108.0 224 120 206 L117 206 Q126.0 180 135 206 L136 206 Q145.0 240 154 206 L160 206 Q167.0 218 174 206 L181 206 Q188.0 218 195 206 L205 206 Q217.0 180 229 206 L226 206 Q238.0 218 250 206 L247 206 Q259.0 240 271 206 L268 206 Q280.0 188 292 206 L286 206 Q291.0 194 296 206 L308 206 Q315.0 224 322 206 L329 206 Q336.0 218 343 206 L351 206 Q358.0 194 365 206 L369 206 Q378.0 224 387 206 L388 206 Q400.0 232 412 206 L416 206 Q421.0 218 426 206 L440 206 Q445.0 218 450 206 L461 206 Q468.0 194 475 206 L483 206 Q495.0 240 507 206 L511 206 Q520.0 240 529 206 L535 206 Q542.0 232 549 206 L565 206 Q574.0 194 583 206 L589 206 Q601.0 180 613 206 L611 206 Q618.0 180 625 206 L635 206 Q642.0 240 649 206 L657 206 Q662.0 240 667 206 L677 206 Q689.0 224 701 206 L702 206 Q714.0 218 726 206 L723 206 Q728.0 188 733 206 L810 206 Q815.0 218 820 206 L840 206 Q852.0 188 864 206 L866 206 Q871.0 188 876 206 L886 206 Q895.0 240 904 206 L920 206" fill="none" stroke="#0d9488" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="250" y="285" class="n" text-anchor="middle">hundreds of tiny wiggles…</text>
+<text x="540" y="285" class="n" text-anchor="middle">…hide the big changes</text>
+<rect x="250.0" y="345" width="460" height="56" rx="28" class="pill"/>
+<text x="480.0" y="369" class="pt" text-anchor="middle">graph-fold</text>
+<text x="480.0" y="389" class="ps" text-anchor="middle">smooths away every difference smaller than a threshold</text>
+<path d="M480.0 323 V341 M472.0 333 L480.0 343 L488.0 333" class="arr"/>
+<path d="M480.0 405 V425 M472.0 415 L480.0 425 L488.0 415" class="arr"/>
+<text x="40" y="465" class="h">After: only the big changes are left</text>
+<text x="40" y="489" class="s">The small differences are folded into the straight lines, so the structural variants stand out.</text>
+<text x="40" y="573" class="l">reference genome</text>
+<line x1="40" y1="585" x2="920" y2="585" stroke="#222" stroke-width="8" stroke-linecap="round"/>
+<path d="M40 609 L430 609 C490 679 590 679 650 609 L920 609" fill="none" stroke="#2563eb" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M40 625 L430 625 C490 683 590 683 650 625 L760 625 C750 550 810 550 800 625 L920 625" fill="none" stroke="#ea580c" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M40 641 L920 641" fill="none" stroke="#0d9488" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="40" y="775" class="s">A real example: 21 kb of chromosome 16 in 464 people is 1,655 pieces before folding and 3 after.</text>
+<text x="540.0" y="725" class="n" text-anchor="middle">deletion: blue and orange skip this stretch</text>
+<text x="780.0" y="551" class="n" text-anchor="middle">insertion: orange has extra DNA</text>
+</svg>
