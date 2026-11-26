@@ -193,14 +193,14 @@ describe('foldGraph agrees with the 1.2.0 oracle', () => {
     }
   }, 60_000)
 
-  test("on 3,000 seeded random graphs given every end as the walk's true end, where no inversion is open", () => {
+  test('on 3,000 seeded random graphs given every end as nowhere, where no inversion is open', () => {
     let compared = 0
     for (let seed = 1; seed <= 3000; seed++) {
       const { nodes, tracks, options } = randomGraph(seed)
       const ends = randomEnds(seed, tracks.length, 0, 100_000)
       const unread = (table: RandomEnds['before']) => ({
         ...table,
-        kinds: table.kinds.map(() => 'ends' as const),
+        kinds: table.kinds.map(() => 'nowhere' as const),
       })
       const openInversion = oracleFold(nodes, tracks, options).branches.some(
         branch => branch.kind === 'inversion' && branch.open === true,

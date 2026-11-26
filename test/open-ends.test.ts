@@ -37,7 +37,7 @@ const reference: InputTrack = {
 
 function table(ends: (End | undefined)[]) {
   const result: EndTable = {
-    kinds: ends.map(end => end?.kind ?? 'ends'),
+    kinds: ends.map(end => end?.kind ?? 'nowhere'),
     pos: ends.map(end => end?.pos ?? Number.NaN),
     reversed: ends.map(end => Number(end?.reversed ?? false)),
     ownBp: ends.map(end => end?.ownBp ?? 0),
@@ -232,8 +232,8 @@ describe('a walk that leaves the reference outside the window', () => {
 describe('ends the fold does not draw', () => {
   const starts = (before: End) => foldEnds([{ sequence: 'c d', before }]).labels
 
-  test('a walk that truly starts inside the window says so', () => {
-    expect(starts({ kind: 'ends', pos: Number.NaN })).toEqual([
+  test('a walk with no step on the reference before its piece is said to start inside the window', () => {
+    expect(starts({ kind: 'nowhere', pos: Number.NaN })).toEqual([
       'walk starts inside the window 2 kb, 1 of 2',
     ])
   })
@@ -288,7 +288,7 @@ describe('what the fold reads past an end keeps its counts true', () => {
     const { result } = foldEnds([
       { sequence: 'c d', before: { kind: 'beyond', pos: 8000, ownBp: 0 } },
       { sequence: 'c d', before: { kind: 'beyond', pos: 2000, ownBp: 0 } },
-      { sequence: 'c d', before: { kind: 'ends', pos: Number.NaN } },
+      { sequence: 'c d', before: { kind: 'nowhere', pos: Number.NaN } },
     ])
     expect(result.branches).toHaveLength(3)
     for (const branch of result.branches) {
@@ -301,9 +301,9 @@ describe('what the fold reads past an end keeps its counts true', () => {
     }
   })
 
-  test('an inversion at an end the walk truly has does not continue past the window', () => {
+  test('an inversion at an end past which the walk has no step on the reference does not continue past the window', () => {
     const { labels } = foldEnds([
-      { sequence: 'a b -d -c', after: { kind: 'ends', pos: Number.NaN } },
+      { sequence: 'a b -d -c', after: { kind: 'nowhere', pos: Number.NaN } },
     ])
     expect(labels).toEqual(['inversion 2 kb, 1 of 2'])
   })
@@ -432,7 +432,7 @@ describe("an open branch is the whole graph's branch, cut by the window", () => 
             .reduce((bp, step) => bp + lengths.get(step)!, 0)
           const ref = far < 0 ? undefined : index.get(outward[far]!)!
           return ref === undefined
-            ? { kind: 'ends' as const, pos: Number.NaN, ownBp }
+            ? { kind: 'nowhere' as const, pos: Number.NaN, ownBp }
             : {
                 kind: 'beyond' as const,
                 pos: side === 'before' ? at[ref + 1]! : at[ref]!,

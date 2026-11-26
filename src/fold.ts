@@ -197,7 +197,7 @@ export function unfolded<N extends InputNode, T extends WalkFields>(
   return result
 }
 
-export const END_KINDS = ['beyond', 'elsewhere', 'edge', 'ends'] as const
+export const END_KINDS = ['beyond', 'elsewhere', 'edge', 'nowhere'] as const
 
 export function endKind(table: EndTable, row: number) {
   const kind = table.kinds[row]
@@ -386,8 +386,8 @@ export function foldWindow<T extends WalkFields>(
     return {
       ...walk,
       runs,
-      told: kinds.map(kind => kind === undefined || kind === 'ends'),
-      truly: kinds.map(kind => kind === 'ends'),
+      told: kinds.map(kind => kind === undefined || kind === 'nowhere'),
+      nowhere: kinds.map(kind => kind === 'nowhere'),
       opens: [
         firstRun === undefined
           ? undefined
@@ -967,8 +967,8 @@ export function foldWindow<T extends WalkFields>(
       const aloneBp = alone.reduce((bp, s) => bp + segments[s]!.length, 0)
       if (against(run) && (whole || aloneBp >= threshold)) {
         const open =
-          (r === 0 && walk.truly[0] !== true) ||
-          (r === runs.length - 1 && walk.truly[1] !== true)
+          (r === 0 && walk.nowhere[0] !== true) ||
+          (r === runs.length - 1 && walk.nowhere[1] !== true)
         carry(`inversion:${start}:${end}:${open}`, walk, () => ({
           kind: 'inversion',
           description: 'inversion',

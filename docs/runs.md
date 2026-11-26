@@ -40,6 +40,10 @@ const fold = foldRuns(
 - The result is the one `foldGraph` gives for the same walks as steps, with the
   reference first and the tracks after it, except for `members`, which lists
   only reference nodes: the sequence off the reference has no node names here
+- `foldRuns` refuses a stretch that is not on the given reference nodes, so a
+  host reading runs with @gmod/gfa-tabix reads them with `contained: true`,
+  which splits each walk where it steps onto reference outside the window and
+  its context
 - Positions are `starts`, so `reference.track.indexOfFirstBase` may be left out;
   given, it must be `starts[0]`
 - Runs the fold cannot read come back unfolded, with `reason` naming the walk or
@@ -76,10 +80,11 @@ const ends = {
 - `kinds[t]` is what lies past that end, in the words of the runs reader of
   @gmod/gfa-tabix, formerly @jbrowse/graph-walks: `beyond`, a departure whose
   far end is next on the reference past the stretch read, the same way round;
-  `elsewhere`, a departure whose far end is reversed or on the other side;
-  `edge`, no departure, and the end lies on the edge of the stretch read, so
-  what the walk does next is not known; `ends`, the walk has no further step on
-  the reference past it
+  `elsewhere`, any other departure: one whose far end is reversed, on the other
+  side, or inside the stretch read; `edge`, no departure, and the end lies on
+  the edge of the stretch read, so what the walk does next is not known;
+  `nowhere`, no departure, and the walk has no further step on the reference
+  past it
 - For a departure, `pos` is its far breakpoint on the reference, where the walk
   leaves it before the piece or rejoins it after, `reversed` is not 0 where the
   far step runs against the reference, `ownBp` is the bp the walk has of its own
@@ -113,9 +118,10 @@ missing:
   one inside the window
 
 A walk that has no further step on the reference past an end inside the window,
-`ends`, is listed as before, and an inversion at that end is not marked `open`.
-An `edge`, and a departure the fold does not draw, one that lacks bp or whose
-far breakpoint lies inside the window, are listed as nothing: the walk is
+`nowhere`, is listed as before, `walk starts inside the window` or
+`walk ends inside the window`, and an inversion at that end is not marked
+`open`. An `edge`, and a departure the fold does not draw, one that lacks bp or
+whose far breakpoint lies inside the window, are listed as nothing: the walk is
 neither said to end there nor to continue past the window.
 
 - Walks that fold to the same steps but differ past their ends, an open branch

@@ -16,7 +16,7 @@ export interface InputTrack extends WalkFields {
   sequence: string[]
 }
 
-export type EndKind = 'beyond' | 'elsewhere' | 'edge' | 'ends'
+export type EndKind = 'beyond' | 'elsewhere' | 'edge' | 'nowhere'
 
 export interface EndTable {
   kinds: ArrayLike<EndKind> | ArrayLike<number>

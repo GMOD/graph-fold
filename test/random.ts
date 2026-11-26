@@ -172,7 +172,7 @@ export function randomEnds(
   const random = seeded(seed * 7919 + 17)
   const table = () => {
     const ends = Array.from({ length: tracks }, () => ({
-      kind: random.pick(['beyond', 'elsewhere', 'edge', 'ends'] as const),
+      kind: random.pick(['beyond', 'elsewhere', 'edge', 'nowhere'] as const),
       pos: random.pick([
         from - random.below(5000),
         to + random.below(5000),
