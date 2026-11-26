@@ -1,11 +1,17 @@
 # Limits
 
-- **Driven by steps, not @gmod/gfa-tabix's departures.** The fold reads the
-  tracks handed to the layout, so it folds a graph from any source. A departure
-  @gmod/gfa-tabix reports without steps, one that jumps the window or carries
-  more than `attachBp`, is not in the tracks: the walk is drawn stopping, and
-  the branch list says `walk ends inside the window`, not what the departure
-  does
+- **Driven by steps, or runs, and by ends only where given.** The fold reads the
+  tracks handed to the layout, so it folds a graph from any source. Without
+  [`ends`](runs.md#open-ends), a walk whose piece in the window starts or ends
+  inside it is listed as `walk starts inside the window` or
+  `walk ends inside the window`, whatever lies past that end
+- **An open end is not joined to the walk's other piece in the window.** A
+  departure whose far end is inside the window leaves its two pieces as two
+  walks. Given `ends`, neither is said to start or end there, and the departure
+  draws no branch, so a branch at its site does not count that walk. Without
+  `ends`, each is listed as starting or ending inside the window
+- **A walk whose departure spans the whole window is not in it.** It has no
+  piece there, so it is in no count of the window
 - **An insertion is its site and its length.** Two alleles of one length at one
   site are one branch whatever their sequence; `members` lists the nodes of both
 - **A duplication the graph holds off the reference is an insertion.** C4 and

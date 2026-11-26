@@ -16,8 +16,8 @@
 
 ## Result
 
-`foldGraph` returns a `FoldResult`, which is `Folded` or `Unfolded` by its
-`folded`. Both have:
+`foldGraph` and `foldRuns` return a `FoldResult`, which is `Folded` or
+`Unfolded` by its `folded`. Both have:
 
 - `threshold`, and `haplotypes`, the distinct haplotypes of every input track,
   the reference among them: the summed `freq` where no track has a `haplotype`
@@ -73,7 +73,10 @@
     the position where the walk starts or ends, and `length` the reference it
     leaves unwalked past there. Place it at that position or list it beside the
     picture
-  - `open`: an inversion the window cuts through
+  - `open`: an inversion the window cuts through, or a departure that continues
+    past the window, see [Open ends](runs.md#open-ends)
+  - `beyond`, only on a departure that continues past the window: where on the
+    reference its far end is
   - `cluster` and `alleles`, only on a clustered branch
 - `walks`: one per input track, in the order of the input: `track` is the `id`
   of its folded track, and
@@ -94,8 +97,7 @@ Every renderer should print the same text, so the package makes it:
   `replacement 15.7 kb for 6.3 kb, 1 of 464`, and for a cluster its range and
   member count, `insertion 8.9 kb to 9.5 kb (cluster of 56 lengths), 129 of 464`
   or `replacement 927 bp to 935 bp for 3.9 kb (cluster of 2 lengths), 2 of 3`
-- `variationLabel(track)`:
-  `439 haplotypes on 356 distinct walks, 8 bp to 795 bp folded away in each`
+- `variationLabel(track)`: `439 haplotypes, 8 bp to 795 bp folded away in each`
 - `bpLabel(bp)`: `584 bp`, `45.5 kb`
 - `track.label`, or `trackLabel(haplotypes, names)`
 - The reference's `label` is its name, followed by `and 1 identical haplotype`
@@ -113,11 +115,13 @@ that hides a piece off the reference or a skip of it at or over the threshold.
 
 A track groups the walks that fold to the same steps in the same directions, so
 it is exact about its route and silent about every difference under the
-threshold. On chr16 at 1000 bp the looping track is 439 haplotypes and 356
-distinct walks. Lowering the threshold separates them: at 50 bp the 439 are a
-track of 413 and a track of 26 that carry a 584 bp deletion as well.
+threshold. On chr16 at 1000 bp the looping track is 439 haplotypes. Lowering the
+threshold separates them: at 50 bp the 439 are a track of 413 and a track of 26
+that carry a 584 bp deletion as well.
 
-- `variation.walks` is how many input walks the track stands for
+- How many distinct walks a track stands for is not stated: a caller that cuts
+  pieces it did not load stands one node in for each, which makes walks of one
+  route look distinct, and [runs](runs.md) name no nodes to tell them apart
 - `variation.foldedAwayBp` is the `min`, `median` and `max`, over the track's
   haplotypes, of the bp each differs from the nodes drawn: what it has and they
   lack plus what they have and it skips. This is the figure a renderer should

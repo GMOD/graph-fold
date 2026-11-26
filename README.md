@@ -45,22 +45,28 @@ if (fold.folded) {
   first, and `fold.nodes` and `fold.tracks` go straight back into it
 - `tables` is the cut's tables from
   [@gmod/gfa-tabix](https://github.com/GMOD/gfa-tabix-js)
+- `foldRuns` takes the same walks as stretches of the reference instead of node
+  steps, and `ends` says what lies past each end of a walk's piece in the
+  window, see [Runs and open ends](docs/runs.md)
 
 ## Options
 
 | Option              | Default | Effect                                                                                                               |
 | ------------------- | ------- | -------------------------------------------------------------------------------------------------------------------- |
-| `threshold`         | 50      | Smallest difference, in bp, kept as a branch                                                                         |
+| `threshold`         | 50      | Smallest difference, in bp, kept as a branch; 1 or more                                                              |
 | `cluster`           | false   | Draw near-equal alleles at one site as one branch                                                                    |
 | `clusterTolerance`  | 0.05    | How near, as a share of the larger allele                                                                            |
 | `reference`         | 0       | Index of the reference track                                                                                         |
 | `referenceRevisits` | none    | Nodes the reference passes twice in the whole graph; above 0 it won't fold, see [the gate](docs/folding.md#the-gate) |
 | `inversions`        | 'walk'  | How an inversion is drawn, see [Inversions](docs/folding.md#inversions)                                              |
+| `ends`              | none    | What lies past each walk's ends, see [Open ends](docs/runs.md#open-ends)                                             |
 
 ## Docs
 
 - [How a window folds](docs/folding.md): what is kept and what is merged
 - [Input and result](docs/result.md): every field in and out, and labels
+- [Runs and open ends](docs/runs.md): walks as stretches, and what lies past a
+  window's edge
 - [Windows folded](docs/windows.md): real examples, before and after
 - [Limits](docs/limits.md): what the fold can't tell apart
 - [Migrating to 0.1.0](docs/migrating-to-0.1.0.md)

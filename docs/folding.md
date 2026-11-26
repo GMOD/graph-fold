@@ -30,7 +30,14 @@
 - Sequence off the reference before a walk's first reference step or after its
   last never rejoins in the window, so it is kept however short. A walk that
   stops the threshold or more short of either end of the reference is drawn
-  stopping there
+  stopping there. What lies past such an end can be given, see
+  [Open ends](runs.md#open-ends)
+- A walk with no step on the reference in the window is one node of its own bp,
+  `off:<walk>:<bp>`, `<walk>` being its index among the tracks. No other walk
+  shares it, even one of the same bp or the same nodes: with no reference step,
+  there is no site to name it by, and [runs](runs.md) carry no node names to
+  tell two such walks apart. No branch reports it, since it has no position on
+  the reference, and its bp are those the caller loaded
 - The backbone is cut at every breakpoint a kept branch or run uses, and each
   piece between two cuts is one merged node
 - Walks that fold to the same steps become one track whose `freq` is their sum
@@ -149,4 +156,6 @@ copy of reference sequence, and the window comes back unfolded.
   pggb graph of four E. coli genomes whose header counts 0 folds, and is a test
   fixture here
 - A window is also not folded when it has no reference track, or a track steps a
-  node that is not among the nodes; `reason` names the track and node
+  node that is not among the nodes; `reason` names the track and node. Nor is it
+  at a threshold under 1 bp, where every step on the reference would be a
+  breakpoint
