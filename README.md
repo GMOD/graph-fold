@@ -69,13 +69,10 @@ if (fold.folded) {
 
 ## Docs
 
-- [How a window folds](docs/folding.md): the rule, fragments, stretches not
-  loaded, inversions, clustering and the gate that refuses a window
-- [The result](docs/result.md): every field of `FoldResult`, the label helpers,
-  `foldProblems`, what a tube hides and drawing conventions
-- [Windows folded](docs/windows.md): real HPRC windows before and after, with
-  pictures and the numbers `pnpm prove` checks
-- [Limits](docs/limits.md): what the fold does not tell apart
+- [How a window folds](docs/folding.md): the rules, with options
+- [The result](docs/result.md): every output field and label
+- [Windows folded](docs/windows.md): real examples, before and after
+- [Limits](docs/limits.md): what the fold can't tell apart
 - [Migrating to 0.1.0](docs/migrating-to-0.1.0.md)
 
 ## License
