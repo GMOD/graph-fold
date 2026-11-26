@@ -44,33 +44,26 @@ if (fold.folded) {
 }
 ```
 
-- `nodes` are `{ name, sequenceLength }`; a node with `seq` and no
-  `sequenceLength` takes its length from `seq`
-- `tracks` are
-  `{ name, sequence, freq, haplotype, indexOfFirstBase, sourceTrackID }`, where
-  `sequence` lists node names with a `-` prefix for a reversed step, `freq`
-  counts the haplotypes that take the walk, 1 when absent, and `haplotype` names
-  the haplotype the walk is part of, see [Fragments](docs/folding.md#fragments).
-  Any other field a track has comes back on the folded track
-- `fold.nodes` and `fold.tracks` are `layoutTubeMap` input whether the window
-  folded or not
-- Reads are not folded. Lay a folded window out without its reads
+- `nodes` and `tracks` are what `layoutTubeMap` takes, the reference track
+  first, and `fold.nodes` and `fold.tracks` go straight back into it
+- Every input field is in [Input](docs/result.md#input), every output field in
+  [The result](docs/result.md)
 
 ## Options
 
 | Option              | Default | Effect                                                                                                               |
 | ------------------- | ------- | -------------------------------------------------------------------------------------------------------------------- |
-| `threshold`         | 50      | bp at which a detour is kept as a branch                                                                             |
-| `cluster`           | false   | Draw near-equal alleles at one site as one branch, marked as a cluster                                               |
-| `clusterTolerance`  | 0.05    | How far two alleles may differ, as a share of the larger one's length                                                |
+| `threshold`         | 50      | Smallest difference, in bp, kept as a branch                                                                         |
+| `cluster`           | false   | Draw near-equal alleles at one site as one branch                                                                    |
+| `clusterTolerance`  | 0.05    | How near, as a share of the larger allele                                                                            |
 | `reference`         | 0       | Index of the reference track                                                                                         |
-| `referenceRevisits` | none    | How many nodes the reference passes more than once in the whole graph, see [the gate](docs/folding.md#the-gate)      |
-| `inversions`        | 'walk'  | `'walk'` steps the reference node reversed; `'box'` steps a copy of it, see [Inversions](docs/folding.md#inversions) |
+| `referenceRevisits` | none    | Nodes the reference passes twice in the whole graph; above 0 it won't fold, see [the gate](docs/folding.md#the-gate) |
+| `inversions`        | 'walk'  | How an inversion is drawn, see [Inversions](docs/folding.md#inversions)                                              |
 
 ## Docs
 
 - [How a window folds](docs/folding.md): the rules, with options
-- [The result](docs/result.md): every output field and label
+- [Input and result](docs/result.md): every field in and out, and labels
 - [Windows folded](docs/windows.md): real examples, before and after
 - [Limits](docs/limits.md): what the fold can't tell apart
 - [Migrating to 0.1.0](docs/migrating-to-0.1.0.md)

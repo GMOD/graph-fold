@@ -1,4 +1,20 @@
-# The result
+# Input and result
+
+## Input
+
+- `nodes` are `{ name, sequenceLength }`; a node with `seq` and no
+  `sequenceLength` takes its length from `seq`
+- `tracks` are
+  `{ name, sequence, freq, haplotype, indexOfFirstBase, sourceTrackID }`, where
+  `sequence` lists node names with a `-` prefix for a reversed step, `freq`
+  counts the haplotypes that take the walk, 1 when absent, and `haplotype` names
+  the haplotype the walk is part of, see [Fragments](folding.md#fragments). Any
+  other field a track has comes back on the folded track
+- `fold.nodes` and `fold.tracks` are `layoutTubeMap` input whether the window
+  folded or not
+- Reads are not folded. Lay a folded window out without its reads
+
+## Result
 
 `foldGraph` returns a `FoldResult`, which is `Folded` or `Unfolded` by its
 `folded`. Both have:
@@ -8,12 +24,12 @@
 - `nodes` and `tracks`, `layoutTubeMap` input
 - `members`, `branches` and `walks`, empty when `folded` is false
 
-## Unfolded
+### Unfolded
 
 - `reason` says why the window was not folded
 - `nodes` and `tracks` are the arrays the caller passed, untouched
 
-## Folded
+### Folded
 
 - `nodes`:
   `{ name, sequenceLength, kind, refStart, refEnd, cluster, invertedOf }`,
@@ -70,7 +86,7 @@
   `largestSkippedBp`, the most reference between two such steps. Both are under
   the threshold
 
-## Labels
+### Labels
 
 Every renderer should print the same text, so the package makes it:
 
