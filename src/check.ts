@@ -1,9 +1,23 @@
 import { haplotypeCounter } from './haplotypes.ts'
 
-import type { FoldResult, Folded, InputNode, InputTrack } from './types.ts'
+import type {
+  FoldResult,
+  Folded,
+  InputNode,
+  InputTrack,
+  RunsInput,
+  WalkFields,
+} from './types.ts'
 
 function nodeName(step: string) {
   return step.startsWith('-') ? step.slice(1) : step
+}
+
+function bpOf(sequence: string[], lengths: Map<string, number>) {
+  return sequence.reduce(
+    (sum, step) => sum + (lengths.get(nodeName(step)) ?? 0),
+    0,
+  )
 }
 
 function records(list: { freq?: number }[]) {
@@ -11,14 +25,11 @@ function records(list: { freq?: number }[]) {
 }
 
 function foldedProblems(
-  nodes: InputNode[],
-  tracks: InputTrack[],
-  result: Folded,
+  tracks: WalkFields[],
+  inputBp: (track: number) => number,
+  result: Folded<WalkFields>,
 ) {
   const problems: string[] = []
-  const inputLength = new Map(
-    nodes.map(n => [n.name, n.sequenceLength ?? n.seq?.length ?? 0]),
-  )
   const foldedLength = new Map(
     result.nodes.map(n => [n.name, n.sequenceLength]),
   )
@@ -33,8 +44,6 @@ function foldedProblems(
         : [],
     ),
   )
-  const bpOf = (sequence: string[], lengths: Map<string, number>) =>
-    sequence.reduce((sum, step) => sum + (lengths.get(nodeName(step)) ?? 0), 0)
 
   for (const track of result.tracks) {
     track.sequence.forEach((step, s) => {
@@ -121,10 +130,10 @@ function foldedProblems(
         `${walk.name} is ${walk.foldedBp} bp folded and its track ${drawnBp} bp`,
       )
     }
-    const inputBp = bpOf(tracks[i]?.sequence ?? [], inputLength)
-    if (inputBp !== walk.originalBp) {
+    const bp = inputBp(i)
+    if (bp !== walk.originalBp) {
       problems.push(
-        `${walk.name} is ${inputBp} bp in the input and ${walk.originalBp} bp in its walk`,
+        `${walk.name} is ${bp} bp in the input and ${walk.originalBp} bp in its walk`,
       )
     }
     const reconciled =
@@ -181,9 +190,41 @@ export function foldProblems<N extends InputNode, T extends InputTrack>(
   tracks: T[],
   result: FoldResult<N, T>,
 ) {
+  const inputLength = new Map(
+    nodes.map(n => [n.name, n.sequenceLength ?? n.seq?.length ?? 0]),
+  )
   return result.folded
-    ? foldedProblems(nodes, tracks, result)
+    ? foldedProblems(
+        tracks,
+        track => bpOf(tracks[track]?.sequence ?? [], inputLength),
+        result,
+      )
     : result.nodes === nodes && result.tracks === tracks
       ? []
       : ['an unfolded result does not hold the nodes and tracks given']
+}
+
+export function foldRunsProblems<N extends InputNode, T extends WalkFields>(
+  input: RunsInput<T>,
+  result: FoldResult<N, T>,
+) {
+  const { reference, tracks, offsets, stretches, leadBp, tailBp } = input
+  const walkBp = (t: number) => {
+    let bp = leadBp[t]! + tailBp[t]!
+    for (let k = offsets[t]!; k < offsets[t + 1]!; k++) {
+      bp += stretches.bp[k]! + (k > offsets[t]! ? stretches.offBefore[k]! : 0)
+    }
+    return bp
+  }
+  const referenceBp = reference.nodes.reduce(
+    (sum, node) => sum + node.sequenceLength,
+    0,
+  )
+  return result.folded
+    ? foldedProblems(
+        [reference.track, ...tracks],
+        track => (track === 0 ? referenceBp : walkBp(track - 1)),
+        result,
+      )
+    : []
 }

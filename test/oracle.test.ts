@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 
 import { foldGraph } from '../src/index.ts'
+import { firstDifference } from './compare.ts'
 import { foldGraph as oracleFold } from './oracle/fold.ts'
 import { randomGraph } from './random.ts'
 
@@ -21,24 +22,6 @@ function allowed(result: unknown) {
     (shaped, allowance) => allowance(shaped),
     JSON.parse(JSON.stringify(result)),
   )
-}
-
-export function firstDifference(a: unknown, b: unknown, path = ''): string {
-  const fields = (x: unknown) =>
-    x !== null && typeof x === 'object' ? new Map(Object.entries(x)) : undefined
-  const left = fields(a)
-  const right = fields(b)
-  return JSON.stringify(a) === JSON.stringify(b)
-    ? ''
-    : left !== undefined &&
-        right !== undefined &&
-        Array.isArray(a) === Array.isArray(b)
-      ? ([...new Set([...left.keys(), ...right.keys()])]
-          .map(key =>
-            firstDifference(left.get(key), right.get(key), `${path}.${key}`),
-          )
-          .find(found => found !== '') ?? `${path}: keys in another order`)
-      : `${path}: ${JSON.stringify(a)?.slice(0, 300)} against ${JSON.stringify(b)?.slice(0, 300)}`
 }
 
 function agrees(
@@ -98,7 +81,7 @@ describe('foldGraph agrees with the 1.2.0 oracle', () => {
       try {
         agrees(nodes, tracks, options)
       } catch (error) {
-        throw new Error(`seed ${seed}: ${String(error)}`)
+        throw new Error(`seed ${seed}: ${String(error)}`, { cause: error })
       }
     }
   }, 60_000)

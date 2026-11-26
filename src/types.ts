@@ -4,13 +4,43 @@ export interface InputNode {
   seq?: string
 }
 
-export interface InputTrack {
+export interface WalkFields {
   name?: string
-  sequence: string[]
   freq?: number
   haplotype?: string
   indexOfFirstBase?: number
   sourceTrackID?: number
+}
+
+export interface InputTrack extends WalkFields {
+  sequence: string[]
+}
+
+export interface ReferenceNode {
+  name: string
+  sequenceLength: number
+}
+
+export interface RunsReference<T extends WalkFields = WalkFields> {
+  track: T
+  nodes: ReferenceNode[]
+  starts: ArrayLike<number>
+}
+
+export interface RunsStretches {
+  starts: ArrayLike<number>
+  bp: ArrayLike<number>
+  against: ArrayLike<number>
+  offBefore: ArrayLike<number>
+}
+
+export interface RunsInput<T extends WalkFields = WalkFields> {
+  reference: RunsReference<T>
+  tracks: T[]
+  offsets: ArrayLike<number>
+  stretches: RunsStretches
+  leadBp: ArrayLike<number>
+  tailBp: ArrayLike<number>
 }
 
 export interface FoldOptions {
@@ -21,6 +51,8 @@ export interface FoldOptions {
   referenceRevisits?: number
   inversions?: 'walk' | 'box'
 }
+
+export type RunsFoldOptions = Omit<FoldOptions, 'reference'>
 
 export interface ClusterInfo {
   members: number
@@ -64,7 +96,7 @@ export interface FoldedTrackFields {
   variation: TrackVariation
 }
 
-export type FoldedTrack<T extends InputTrack = InputTrack> = T &
+export type FoldedTrack<T extends WalkFields = InputTrack> = T &
   FoldedTrackFields
 
 export type BranchKind = 'insertion' | 'deletion' | 'inversion' | 'other'
@@ -134,7 +166,7 @@ interface FoldSummary {
   walks: FoldedWalk[]
 }
 
-export interface Folded<T extends InputTrack = InputTrack> extends FoldSummary {
+export interface Folded<T extends WalkFields = InputTrack> extends FoldSummary {
   folded: true
   nodes: FoldedNode[]
   tracks: FoldedTrack<T>[]
@@ -142,7 +174,7 @@ export interface Folded<T extends InputTrack = InputTrack> extends FoldSummary {
 
 export interface Unfolded<
   N extends InputNode = InputNode,
-  T extends InputTrack = InputTrack,
+  T extends WalkFields = InputTrack,
 > extends FoldSummary {
   folded: false
   reason: string
@@ -152,5 +184,5 @@ export interface Unfolded<
 
 export type FoldResult<
   N extends InputNode = InputNode,
-  T extends InputTrack = InputTrack,
+  T extends WalkFields = InputTrack,
 > = Folded<T> | Unfolded<N, T>

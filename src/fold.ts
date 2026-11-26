@@ -21,6 +21,7 @@ import type {
   InputTrack,
   TrackVariation,
   Unfolded,
+  WalkFields,
 } from './types.ts'
 
 type BranchDraft = Omit<Branch, 'tracks' | 'anchored' | 'haplotypes'>
@@ -152,11 +153,11 @@ function variationOf(
 
 const noVariation = variationOf([{ insertedBp: 0, skippedBp: 0, freq: 1 }])
 
-function haplotypesOf(tracks: InputTrack[]) {
+function haplotypesOf(tracks: WalkFields[]) {
   return haplotypeCounter(tracks)(tracks.keys())
 }
 
-function unfolded<N extends InputNode, T extends InputTrack>(
+export function unfolded<N extends InputNode, T extends WalkFields>(
   nodes: N[],
   tracks: T[],
   threshold: number,

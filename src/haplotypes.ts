@@ -1,10 +1,10 @@
-import type { InputTrack } from './types.ts'
+import type { WalkFields } from './types.ts'
 
-export function haplotypeKey(tracks: InputTrack[], index: number) {
+export function haplotypeKey(tracks: WalkFields[], index: number) {
   return tracks[index]?.haplotype ?? index
 }
 
-export function haplotypeCounter(tracks: InputTrack[]) {
+export function haplotypeCounter(tracks: WalkFields[]) {
   return (indices: Iterable<number>) => {
     const weights = new Map<string | number, number>()
     for (const index of indices) {

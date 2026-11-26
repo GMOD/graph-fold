@@ -93,13 +93,15 @@ function randomWalk(random: Random, refSteps: string[], offNode: () => string) {
   return random.chance(0.15) ? sequence.reverse().map(flip) : sequence
 }
 
-export function randomGraph(seed: number) {
+export function randomGraph(seed: number, placed = false) {
   const random = seeded(seed)
   const refCount = 3 + random.below(30)
   const refNames = Array.from({ length: refCount }, (_, i) => `r${i}`)
   const nodes: InputNode[] = refNames.map(name => ({
     name,
-    sequenceLength: nodeLength(random),
+    sequenceLength: placed
+      ? Math.max(1, nodeLength(random))
+      : nodeLength(random),
   }))
   const refSteps = refNames.map(name =>
     random.chance(0.1) ? `-${name}` : name,
