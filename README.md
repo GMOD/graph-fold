@@ -8,7 +8,7 @@ of pieces and the large changes, the structural variants, are lost among them.
 graph-fold merges every difference smaller than a threshold into the reference
 and keeps the large ones, so the picture shows only what matters:
 
-![Before: three genomes full of tiny wiggles around a reference. After graph-fold: straight lines with one deletion and one insertion left](docs/hero.svg)
+![Three rows. Before: three people's DNA drawn against a gray reference genome, covered in tiny bumps wherever they differ, even by one letter. The rule: each difference sits on a size scale, and those under a threshold you pick, here 1,000 letters, merge into the reference while bigger ones are kept. After: straight lines with only a deletion, an insertion and an inversion left](docs/hero.svg)
 
 - **In:** the nodes and tracks of a tube map, as
   [@jbrowse/tubemap-core](https://github.com/GMOD/tubemap-core)'s

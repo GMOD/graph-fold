@@ -1,37 +1,128 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 780" width="960" height="780" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
-<style>
-.h { font-size: 20px; font-weight: 700; fill: #111 }
-.s { font-size: 15px; fill: #444 }
-.l { font-size: 13px; fill: #222 }
-.n { font-size: 15px; font-style: italic; fill: #333 }
-.pill { fill: #f3f0ff; stroke: #7c3aed; stroke-width: 2 }
-.pt { font-size: 18px; font-weight: 700; fill: #5b21b6 }
-.ps { font-size: 14px; fill: #4c1d95 }
-.arr { fill: none; stroke: #7c3aed; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round }
-</style>
-<rect width="960" height="780" rx="12" fill="#fff"/>
-<text x="40" y="30" class="h">Before: a pangenome graph</text>
-<text x="40" y="54" class="s">Each coloured line is one person’s genome. Every small difference, even one letter, gets its own wiggle.</text>
-<text x="40" y="138" class="l">reference genome</text>
-<line x1="40" y1="150" x2="920" y2="150" stroke="#222" stroke-width="8" stroke-linecap="round"/>
-<path d="M40 174 L60 174 Q67.0 162 74 174 L79 174 Q91.0 186 103 174 L99 174 Q104.0 148 109 174 L117 174 Q129.0 192 141 174 L139 174 Q144.0 156 149 174 L165 174 Q174.0 162 183 174 L195 174 Q202.0 208 209 174 L214 174 Q223.0 156 232 174 L232 174 Q241.0 208 250 174 L254 174 Q261.0 156 268 174 L276 174 Q285.0 200 294 174 L305 174 Q314.0 148 323 174 L332 174 Q341.0 200 350 174 L356 174 Q363.0 156 370 174 L377 174 Q389.0 162 401 174 L396 174 Q405.0 148 414 174 L430 174 C490 244 590 244 650 174 L670 174 Q682.0 186 694 174 L690 174 Q697.0 162 704 174 L712 174 Q717.0 148 722 174 L730 174 Q742.0 200 754 174 L832 174 Q844.0 200 856 174 L855 174 Q862.0 200 869 174 L876 174 Q881.0 186 886 174 L920 174" fill="none" stroke="#2563eb" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-<path d="M40 190 L69 190 Q81.0 178 93 190 L89 190 Q98.0 202 107 190 L118 190 Q127.0 216 136 190 L144 190 Q151.0 178 158 190 L163 190 Q168.0 216 173 190 L184 190 Q193.0 224 202 190 L211 190 Q218.0 164 225 190 L234 190 Q241.0 178 248 190 L259 190 Q264.0 164 269 190 L282 190 Q287.0 178 292 190 L311 190 Q320.0 164 329 190 L334 190 Q343.0 178 352 190 L354 190 Q366.0 224 378 190 L381 190 Q386.0 178 391 190 L408 190 Q415.0 202 422 190 L430 190 C490 248 590 248 650 190 L677 190 Q684.0 178 691 190 L707 190 Q716.0 178 725 190 L760 190 C750 115 810 115 800 190 L823 190 Q830.0 164 837 190 L841 190 Q846.0 164 851 190 L870 190 Q877.0 208 884 190 L920 190" fill="none" stroke="#ea580c" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-<path d="M40 206 L78 206 Q85.0 224 92 206 L96 206 Q108.0 224 120 206 L117 206 Q126.0 180 135 206 L136 206 Q145.0 240 154 206 L160 206 Q167.0 218 174 206 L181 206 Q188.0 218 195 206 L205 206 Q217.0 180 229 206 L226 206 Q238.0 218 250 206 L247 206 Q259.0 240 271 206 L268 206 Q280.0 188 292 206 L286 206 Q291.0 194 296 206 L308 206 Q315.0 224 322 206 L329 206 Q336.0 218 343 206 L351 206 Q358.0 194 365 206 L369 206 Q378.0 224 387 206 L388 206 Q400.0 232 412 206 L416 206 Q421.0 218 426 206 L440 206 Q445.0 218 450 206 L461 206 Q468.0 194 475 206 L483 206 Q495.0 240 507 206 L511 206 Q520.0 240 529 206 L535 206 Q542.0 232 549 206 L565 206 Q574.0 194 583 206 L589 206 Q601.0 180 613 206 L611 206 Q618.0 180 625 206 L635 206 Q642.0 240 649 206 L657 206 Q662.0 240 667 206 L677 206 Q689.0 224 701 206 L702 206 Q714.0 218 726 206 L723 206 Q728.0 188 733 206 L810 206 Q815.0 218 820 206 L840 206 Q852.0 188 864 206 L866 206 Q871.0 188 876 206 L886 206 Q895.0 240 904 206 L920 206" fill="none" stroke="#0d9488" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-<text x="250" y="285" class="n" text-anchor="middle">hundreds of tiny wiggles…</text>
-<text x="540" y="285" class="n" text-anchor="middle">…hide the big changes</text>
-<rect x="250.0" y="345" width="460" height="56" rx="28" class="pill"/>
-<text x="480.0" y="369" class="pt" text-anchor="middle">graph-fold</text>
-<text x="480.0" y="389" class="ps" text-anchor="middle">smooths away every difference smaller than a threshold</text>
-<path d="M480.0 323 V341 M472.0 333 L480.0 343 L488.0 333" class="arr"/>
-<path d="M480.0 405 V425 M472.0 415 L480.0 425 L488.0 415" class="arr"/>
-<text x="40" y="465" class="h">After: only the big changes are left</text>
-<text x="40" y="489" class="s">The small differences are folded into the straight lines, so the structural variants stand out.</text>
-<text x="40" y="573" class="l">reference genome</text>
-<line x1="40" y1="585" x2="920" y2="585" stroke="#222" stroke-width="8" stroke-linecap="round"/>
-<path d="M40 609 L430 609 C490 679 590 679 650 609 L920 609" fill="none" stroke="#2563eb" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-<path d="M40 625 L430 625 C490 683 590 683 650 625 L760 625 C750 550 810 550 800 625 L920 625" fill="none" stroke="#ea580c" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-<path d="M40 641 L920 641" fill="none" stroke="#0d9488" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-<text x="40" y="775" class="s">A real example: 21 kb of chromosome 16 in 464 people is 1,655 pieces before folding and 3 after.</text>
-<text x="540.0" y="725" class="n" text-anchor="middle">deletion: blue and orange skip this stretch</text>
-<text x="780.0" y="551" class="n" text-anchor="middle">insertion: orange has extra DNA</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="570" viewBox="0 0 960 570" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title>graph-fold: before and after</title>
+<rect width="960" height="570" rx="12" fill="#ffffff"/>
+<text x="40.0" y="46.0" font-size="21" fill="#1f2328" font-weight="600" text-anchor="start" >graph-fold hides the tiny differences between genomes and keeps the big ones</text>
+<text x="40.0" y="70.0" font-size="13.5" fill="#59636e" font-weight="400" text-anchor="start" >Each colored line is one person’s DNA, read left to right. The gray line is the reference genome they are all compared to.</text>
+<text x="40.0" y="150.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >Before</text>
+<text x="40.0" y="169.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >every difference,</text>
+<text x="40.0" y="184.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >even one letter,</text>
+<text x="40.0" y="199.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >is a branch</text>
+<rect x="151.2" y="132" width="13.0" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="166.6" y="132" width="13.9" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="182.9" y="132" width="0.9" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="186.1" y="132" width="6.5" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="195.0" y="132" width="8.4" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="205.8" y="132" width="11.1" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="219.2" y="132" width="3.5" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="225.2" y="132" width="0.7" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="228.3" y="132" width="21.2" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="252.3" y="132" width="10.5" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="265.2" y="132" width="225.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="493.2" y="132" width="16.7" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="512.3" y="132" width="0.5" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="515.2" y="132" width="2.7" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="520.2" y="132" width="14.0" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="536.6" y="132" width="3.5" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="542.5" y="132" width="6.9" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="551.8" y="132" width="11.8" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="566.0" y="132" width="11.2" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="579.6" y="132" width="3.5" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="585.5" y="132" width="19.3" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="607.2" y="132" width="89.0" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="698.6" y="132" width="5.2" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="706.2" y="132" width="12.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="721.2" y="132" width="73.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="797.2" y="132" width="11.3" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="810.9" y="132" width="9.9" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="823.3" y="132" width="32.2" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="857.8" y="132" width="4.0" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="865.2" y="132" width="11.1" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="878.7" y="132" width="3.9" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="885.0" y="132" width="3.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="891.0" y="132" width="17.8" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="612.0" y="82" width="76" height="20" rx="3" fill="#ddeaff" stroke="#0969da" stroke-width="1"/>
+<path d="M144,150 L916,150" fill="none" stroke="#8c959f" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144,140 L188.8,140 Q193.8,129.2 198.8,140 L213.0,140 Q218.0,129.2 223.0,140 L246.1,140 Q251.1,129.2 256.1,140 L506.1,140 Q511.1,129.2 516.1,140 L530.4,140 Q535.4,129.2 540.4,140 L559.8,140 Q564.8,129.2 569.8,140 L579.3,140 Q584.3,129.2 589.3,140 L592.0,140 C604.0,140 600.0,92 618.0,92 L682.0,92 C698.0,92 676.0,140 692.0,140 L692.4,140 Q697.4,129.2 702.4,140 L851.6,140 Q856.6,129.2 861.6,140 L872.5,140 Q877.5,129.2 882.5,140 L916,140" fill="none" stroke="#0969da" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144,160 L160.4,160 Q165.4,170.8 170.4,160 L176.7,160 Q181.7,170.8 186.7,160 L199.6,160 Q204.6,170.8 209.6,160 L219.0,160 Q224.0,170.8 229.0,160 L245.6,160 Q250.6,170.8 255.6,160 L514.0,160 Q519.0,170.8 524.0,160 L536.3,160 Q541.3,170.8 546.3,160 L573.4,160 Q578.4,170.8 583.4,160 L804.7,160 Q809.7,170.8 814.7,160 L859.0,160 Q864.0,170.8 869.0,160 L884.8,160 Q889.8,170.8 894.8,160 L916,160" fill="none" stroke="#bf8700" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="723.0" y1="160" x2="793.0" y2="160" stroke="#eef1f4" stroke-width="4"/>
+<path d="M734.5,155 L724.5,160 L734.5,165 Z" fill="#bf8700"/>
+<path d="M753.5,155 L743.5,160 L753.5,165 Z" fill="#bf8700"/>
+<path d="M772.5,155 L762.5,160 L772.5,165 Z" fill="#bf8700"/>
+<path d="M791.5,155 L781.5,160 L791.5,165 Z" fill="#bf8700"/>
+<path d="M144,170 L179.9,170 Q184.9,180.8 189.9,170 L222.1,170 Q227.1,180.8 232.1,170 L264.0,170 C294.0,216 462.0,216 492.0,170 L509.0,170 Q514.0,180.8 519.0,170 L545.6,170 Q550.6,180.8 555.6,170 L700.0,170 Q705.0,180.8 710.0,170 L817.1,170 Q822.1,180.8 827.1,170 L858.1,170 Q863.1,180.8 868.1,170 L878.8,170 Q883.8,180.8 888.8,170 L916,170" fill="none" stroke="#cf222e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="910.0" y="232.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="end" >a real 21 kb stretch: 1,655 pieces, drawn 86,000 px wide</text>
+<text x="40.0" y="300.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >The rule</text>
+<text x="40.0" y="319.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >sort by size</text>
+<rect x="150" y="268" width="456.0" height="62" rx="6" fill="#f3f4f6"/>
+<rect x="606.0" y="268" width="304.0" height="62" rx="6" fill="#fff4e5"/>
+<line x1="150" y1="314" x2="910" y2="314" stroke="#c3cad3" stroke-width="1.5"/>
+<line x1="150.0" y1="310" x2="150.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="150.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="start" >1 letter</text>
+<line x1="302.0" y1="310" x2="302.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="302.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="middle" >10</text>
+<line x1="454.0" y1="310" x2="454.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="454.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="middle" >100</text>
+<line x1="758.0" y1="310" x2="758.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="758.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="middle" >10,000</text>
+<line x1="910.0" y1="310" x2="910.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="910.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="end" >100,000 letters</text>
+<circle cx="155.0" cy="306.0" r="3.3" fill="#bf8700"/>
+<circle cx="155.0" cy="298.0" r="3.3" fill="#bf8700"/>
+<circle cx="155.0" cy="290.0" r="3.3" fill="#0969da"/>
+<circle cx="155.0" cy="282.0" r="3.3" fill="#cf222e"/>
+<circle cx="155.0" cy="274.0" r="3.3" fill="#0969da"/>
+<circle cx="163.0" cy="306.0" r="3.3" fill="#cf222e"/>
+<circle cx="163.0" cy="298.0" r="3.3" fill="#0969da"/>
+<circle cx="163.0" cy="290.0" r="3.3" fill="#0969da"/>
+<circle cx="163.0" cy="282.0" r="3.3" fill="#cf222e"/>
+<circle cx="163.0" cy="274.0" r="3.3" fill="#bf8700"/>
+<circle cx="171.0" cy="306.0" r="3.3" fill="#0969da"/>
+<circle cx="224.0" cy="306.0" r="3.3" fill="#0969da"/>
+<circle cx="256.0" cy="306.0" r="3.3" fill="#bf8700"/>
+<circle cx="296.0" cy="306.0" r="3.3" fill="#bf8700"/>
+<circle cx="336.0" cy="306.0" r="3.3" fill="#0969da"/>
+<circle cx="344.0" cy="306.0" r="3.3" fill="#0969da"/>
+<circle cx="384.0" cy="306.0" r="3.3" fill="#cf222e"/>
+<circle cx="384.0" cy="298.0" r="3.3" fill="#bf8700"/>
+<circle cx="408.0" cy="306.0" r="3.3" fill="#bf8700"/>
+<circle cx="456.0" cy="306.0" r="3.3" fill="#bf8700"/>
+<circle cx="464.0" cy="306.0" r="3.3" fill="#bf8700"/>
+<circle cx="496.0" cy="306.0" r="3.3" fill="#0969da"/>
+<circle cx="496.0" cy="298.0" r="3.3" fill="#bf8700"/>
+<circle cx="512.0" cy="306.0" r="3.3" fill="#cf222e"/>
+<circle cx="528.0" cy="306.0" r="3.3" fill="#bf8700"/>
+<circle cx="536.0" cy="306.0" r="3.3" fill="#0969da"/>
+<circle cx="552.0" cy="306.0" r="3.3" fill="#cf222e"/>
+<circle cx="560.0" cy="306.0" r="3.3" fill="#cf222e"/>
+<circle cx="576.0" cy="306.0" r="3.3" fill="#cf222e"/>
+<circle cx="724.3" cy="306" r="5.5" fill="#cf222e"/>
+<circle cx="678.5" cy="306" r="5.5" fill="#0969da"/>
+<circle cx="651.8" cy="306" r="5.5" fill="#bf8700"/>
+<line x1="606.0" y1="262" x2="606.0" y2="336" stroke="#1f2328" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="606.0" y="346.0" font-size="11.5" fill="#1f2328" font-weight="600" text-anchor="middle" >1,000 letters (you pick)</text>
+<text x="594.0" y="284.0" font-size="13" fill="#59636e" font-weight="400" text-anchor="end" >smaller: merged into the reference</text>
+<text x="618.0" y="284.0" font-size="13" fill="#9a6700" font-weight="600" text-anchor="start" >bigger: kept</text>
+<text x="40.0" y="450.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >After</text>
+<text x="40.0" y="469.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >only the big</text>
+<text x="40.0" y="484.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >changes remain</text>
+<rect x="151.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="265.2" y="432" width="225.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="493.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="607.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="721.2" y="432" width="73.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="797.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="612.0" y="382" width="76" height="20" rx="3" fill="#ddeaff" stroke="#0969da" stroke-width="1"/>
+<path d="M144,450 L916,450" fill="none" stroke="#8c959f" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144,440 L592.0,440 C604.0,440 600.0,392 618.0,392 L682.0,392 C698.0,392 676.0,440 692.0,440 L916,440" fill="none" stroke="#0969da" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144,460 L916,460" fill="none" stroke="#bf8700" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="723.0" y1="460" x2="793.0" y2="460" stroke="#eef1f4" stroke-width="4"/>
+<path d="M734.5,455 L724.5,460 L734.5,465 Z" fill="#bf8700"/>
+<path d="M753.5,455 L743.5,460 L753.5,465 Z" fill="#bf8700"/>
+<path d="M772.5,455 L762.5,460 L772.5,465 Z" fill="#bf8700"/>
+<path d="M791.5,455 L781.5,460 L791.5,465 Z" fill="#bf8700"/>
+<path d="M144,470 L264.0,470 C294.0,516 462.0,516 492.0,470 L916,470" fill="none" stroke="#cf222e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="694.0" y="396.0" font-size="12.5" fill="#0969da" font-weight="600" text-anchor="start" >insertion: 3,000 extra letters</text>
+<text x="378.0" y="522.0" font-size="12.5" fill="#cf222e" font-weight="600" text-anchor="middle" >deletion: skips 6,000 letters</text>
+<text x="758.0" y="500.0" font-size="12.5" fill="#9a6700" font-weight="600" text-anchor="middle" >inversion: read backwards</text>
+<text x="910.0" y="540.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="end" >the same real stretch: 3 pieces, 504 px wide</text>
 </svg>
