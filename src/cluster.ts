@@ -2,17 +2,27 @@ export interface Site {
   left: number
   right: number
   inserted: number
+  beyond?: number
 }
 
-export function siteKey({ left, right, inserted }: Site) {
-  return `${left}:${right}:${inserted}`
+export function siteKey({ left, right, inserted, beyond }: Site) {
+  return beyond === undefined
+    ? `${left}:${right}:${inserted}`
+    : `${left}:${right}:${inserted}:${beyond}`
 }
 
-function near(a: Site, b: Site, offsets: number[], tolerance: number) {
-  const deleted = (s: Site) => offsets[s.right]! - offsets[s.left]!
+function near(
+  a: Site,
+  b: Site,
+  offsets: number[],
+  tolerance: number,
+  deleted: (site: Site) => number,
+) {
   const slack =
     tolerance * Math.max(a.inserted, b.inserted, deleted(a), deleted(b))
   return (
+    a.beyond === b.beyond &&
+    (a.beyond === undefined || (a.left === b.left && a.right === b.right)) &&
     a.inserted > 0 === b.inserted > 0 &&
     a.right > a.left === b.right > b.left &&
     Math.abs(offsets[a.left]! - offsets[b.left]!) <= slack &&
@@ -25,6 +35,7 @@ export function clusterLeaders(
   tally: Map<string, { site: Site; haplotypes: number }>,
   offsets: number[],
   tolerance: number,
+  deleted: (site: Site) => number,
 ) {
   const leaders: Site[] = []
   const leaderOf = new Map<string, Site>()
@@ -36,7 +47,7 @@ export function clusterLeaders(
       a.site.inserted - b.site.inserted,
   )
   for (const { site } of mostCarriedFirst) {
-    const leader = leaders.find(l => near(l, site, offsets, tolerance))
+    const leader = leaders.find(l => near(l, site, offsets, tolerance, deleted))
     leaderOf.set(siteKey(site), leader ?? site)
     if (leader === undefined) {
       leaders.push(site)

@@ -16,6 +16,21 @@ export interface InputTrack extends WalkFields {
   sequence: string[]
 }
 
+export type EndKind = 'departure' | 'end' | 'unknown'
+
+export interface EndTable {
+  kinds: readonly EndKind[]
+  pos: ArrayLike<number>
+  reversed: ArrayLike<number>
+  ownBp: ArrayLike<number>
+  missingBp: ArrayLike<number>
+}
+
+export interface WalkEnds {
+  before: EndTable
+  after: EndTable
+}
+
 export interface ReferenceNode {
   name: string
   sequenceLength: number
@@ -41,6 +56,7 @@ export interface RunsInput<T extends WalkFields = WalkFields> {
   stretches: RunsStretches
   leadBp: ArrayLike<number>
   tailBp: ArrayLike<number>
+  ends?: WalkEnds
 }
 
 export interface FoldOptions {
@@ -50,6 +66,7 @@ export interface FoldOptions {
   reference?: number
   referenceRevisits?: number
   inversions?: 'walk' | 'box'
+  ends?: WalkEnds
 }
 
 export type RunsFoldOptions = Omit<FoldOptions, 'reference'>
@@ -130,6 +147,7 @@ export interface Branch {
   from?: string
   to?: string
   open?: boolean
+  beyond?: number
   cluster?: ClusterInfo
   alleles?: BranchAllele[]
   copies?: BranchCopies[]

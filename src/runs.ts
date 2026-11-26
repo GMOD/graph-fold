@@ -1,6 +1,7 @@
 import { foldGraph, unfolded } from './fold.ts'
 
 import type {
+  EndTable,
   FoldResult,
   InputTrack,
   ReferenceNode,
@@ -127,6 +128,17 @@ function expanded<T extends WalkFields>(input: RunsInput<T>) {
   return { nodes, tracks: [referenceTrack, ...walks] }
 }
 
+function afterReference(table: EndTable) {
+  const shifted: EndTable = {
+    kinds: ['unknown', ...table.kinds],
+    pos: [Number.NaN, ...Array.from(table.pos)],
+    reversed: [0, ...Array.from(table.reversed)],
+    ownBp: [0, ...Array.from(table.ownBp)],
+    missingBp: [0, ...Array.from(table.missingBp)],
+  }
+  return shifted
+}
+
 export function foldRuns<T extends WalkFields>(
   input: RunsInput<T>,
   options: RunsFoldOptions = {},
@@ -141,7 +153,18 @@ export function foldRuns<T extends WalkFields>(
           options.threshold ?? 50,
           reason ?? '',
         )
-      : foldGraph(steps.nodes, steps.tracks, { ...options, reference: 0 })
+      : foldGraph(steps.nodes, steps.tracks, {
+          ...options,
+          reference: 0,
+          ...(input.ends === undefined
+            ? {}
+            : {
+                ends: {
+                  before: afterReference(input.ends.before),
+                  after: afterReference(input.ends.after),
+                },
+              }),
+        })
   const named = new Set(input.reference.nodes.map(node => node.name))
   return {
     ...result,

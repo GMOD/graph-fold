@@ -9,14 +9,16 @@ import {
   foldRunsProblems,
 } from '../src/index.ts'
 import { firstDifference, sortedKeys } from './compare.ts'
-import { randomGraph } from './random.ts'
+import { randomEnds, randomGraph } from './random.ts'
 import { stepsToRuns } from './steps-to-runs.ts'
 
 import type {
+  EndTable,
   FoldOptions,
   InputNode,
   InputTrack,
   RunsInput,
+  WalkEnds,
 } from '../src/index.ts'
 
 function outsideIdentity(result: unknown) {
@@ -34,12 +36,31 @@ function agrees(
   nodes: InputNode[],
   tracks: InputTrack[],
   options: FoldOptions,
+  ends?: WalkEnds,
 ) {
   const reference = options.reference ?? 0
   const { input, tracks: ordered } = stepsToRuns(nodes, tracks, reference)
   const { reference: _, ...rest } = options
-  const steps = foldGraph(nodes, ordered, { ...rest, reference: 0 })
-  const runs = foldRuns(input, rest)
+  const withReference = (table: EndTable) => ({
+    kinds: ['unknown' as const, ...table.kinds],
+    pos: [0, ...Array.from(table.pos)],
+    reversed: [0, ...Array.from(table.reversed)],
+    ownBp: [0, ...Array.from(table.ownBp)],
+    missingBp: [0, ...Array.from(table.missingBp)],
+  })
+  const steps = foldGraph(nodes, ordered, {
+    ...rest,
+    reference: 0,
+    ...(ends === undefined
+      ? {}
+      : {
+          ends: {
+            before: withReference(ends.before),
+            after: withReference(ends.after),
+          },
+        }),
+  })
+  const runs = foldRuns(ends === undefined ? input : { ...input, ends }, rest)
   if (runs.folded || steps.folded) {
     expect(firstDifference(outsideIdentity(runs), outsideIdentity(steps))).toBe(
       '',
@@ -105,14 +126,15 @@ describe('foldRuns equals foldGraph on the same walks read as runs', () => {
         step => (lengths.get(step.replace(/^-/, '')) ?? 0) > 0,
       )
       if (readable && placed) {
-        {
-          try {
-            agrees(nodes, tracks, options)
-          } catch (error) {
-            throw new Error(`seed ${seed}: ${String(error)}`, { cause: error })
-          }
-          compared += 1
+        const start = tracks[options.reference ?? 0]!.indexOfFirstBase ?? 0
+        const ends = randomEnds(seed, tracks.length - 1, start, start + 5000)
+        try {
+          agrees(nodes, tracks, options)
+          agrees(nodes, tracks, options, ends)
+        } catch (error) {
+          throw new Error(`seed ${seed}: ${String(error)}`, { cause: error })
         }
+        compared += 1
       }
     }
     expect(compared).toBeGreaterThan(2000)

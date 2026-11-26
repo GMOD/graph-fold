@@ -5,9 +5,15 @@ import { describe, expect, test } from 'vitest'
 import { foldGraph } from '../src/index.ts'
 import { firstDifference } from './compare.ts'
 import { foldGraph as oracleFold } from './oracle/fold.ts'
-import { randomGraph } from './random.ts'
+import { randomEnds, randomGraph } from './random.ts'
 
-import type { FoldOptions, InputNode, InputTrack } from '../src/index.ts'
+import type {
+  EndTable,
+  FoldOptions,
+  InputNode,
+  InputTrack,
+  WalkEnds,
+} from '../src/index.ts'
 
 interface Window {
   nodes: InputNode[]
@@ -95,6 +101,7 @@ function agrees(
   nodes: InputNode[],
   tracks: InputTrack[],
   options: FoldOptions,
+  ends?: WalkEnds,
 ) {
   const given = { nodes, tracks, options }
   const original: Shape = JSON.parse(
@@ -107,7 +114,14 @@ function agrees(
       )
     : given
   const plain: [Shape, Shape] = [
-    JSON.parse(JSON.stringify(foldGraph(nodes, tracks, options))),
+    JSON.parse(
+      JSON.stringify(
+        foldGraph(nodes, tracks, {
+          ...options,
+          ...(ends === undefined ? {} : { ends }),
+        }),
+      ),
+    ),
     original.folded
       ? JSON.parse(
           JSON.stringify(
@@ -173,6 +187,27 @@ describe('foldGraph agrees with the 1.2.0 oracle', () => {
       const { nodes, tracks, options } = randomGraph(seed)
       try {
         agrees(nodes, tracks, options)
+      } catch (error) {
+        throw new Error(`seed ${seed}: ${String(error)}`, { cause: error })
+      }
+    }
+  }, 60_000)
+
+  test('on 3,000 seeded random graphs given ends of no departure the fold reads', () => {
+    for (let seed = 1; seed <= 3000; seed++) {
+      const { nodes, tracks, options } = randomGraph(seed)
+      const ends = randomEnds(seed, tracks.length, 0, 100_000)
+      const unread = (table: EndTable) => ({
+        ...table,
+        kinds: table.kinds.map((kind, t) =>
+          kind === 'departure' && table.missingBp[t] === 0 ? 'end' : kind,
+        ),
+      })
+      try {
+        agrees(nodes, tracks, options, {
+          before: unread(ends.before),
+          after: unread(ends.after),
+        })
       } catch (error) {
         throw new Error(`seed ${seed}: ${String(error)}`, { cause: error })
       }

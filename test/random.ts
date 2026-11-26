@@ -1,4 +1,9 @@
-import type { FoldOptions, InputNode, InputTrack } from '../src/index.ts'
+import type {
+  EndTable,
+  FoldOptions,
+  InputNode,
+  InputTrack,
+} from '../src/index.ts'
 
 export function seeded(seed: number) {
   let state = seed >>> 0
@@ -161,4 +166,35 @@ export function randomGraph(seed: number, placed = false) {
     inversions: random.chance(0.3) ? 'box' : 'walk',
   }
   return { nodes, tracks, options }
+}
+
+export function randomEnds(
+  seed: number,
+  tracks: number,
+  from: number,
+  to: number,
+) {
+  const random = seeded(seed * 7919 + 17)
+  const table = () => {
+    const ends = Array.from({ length: tracks }, () => ({
+      kind: random.pick(['departure', 'departure', 'end', 'unknown'] as const),
+      pos: random.pick([
+        from - random.below(5000),
+        to + random.below(5000),
+        from + random.below(Math.max(1, to - from)),
+      ]),
+      reversed: Number(random.chance(0.2)),
+      ownBp: random.pick([0, random.below(60), random.below(5000)]),
+      missingBp: random.chance(0.1) ? 1 + random.below(100) : 0,
+    }))
+    const result: EndTable = {
+      kinds: ends.map(end => end.kind),
+      pos: ends.map(end => end.pos),
+      reversed: ends.map(end => end.reversed),
+      ownBp: ends.map(end => end.ownBp),
+      missingBp: ends.map(end => end.missingBp),
+    }
+    return result
+  }
+  return { before: table(), after: table() }
 }
