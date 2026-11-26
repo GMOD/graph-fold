@@ -1,3 +1,44 @@
+## [1.3.0](https://github.com/GMOD/graph-fold/compare/v1.2.0...v1.3.0) (2026-11-26)
+
+### Bug Fixes
+
+- A walk with no step on the reference is one node of its own bp, named by the walk and shared with no other, in foldGraph as in foldRuns, where each of its steps was a node of its own; the oracle test names this allowance ([8f9226b](https://github.com/GMOD/graph-fold/commit/8f9226b537858099d29c6bc1863e3ebd4bd8d864))
+- The variation line no longer counts distinct walks, which a cut with stand-in nodes overcounts and runs undercount, and a track's variation drops its walks field; the oracle test names this allowance ([ebc2c87](https://github.com/GMOD/graph-fold/commit/ebc2c87857857c069357940e6722935f85ed0323))
+- Ends take graph-walks' four kinds, beyond, elsewhere, edge and ends; at an edge, and at a departure the fold does not draw, the walk is neither said to end inside the window nor to continue past it ([d6370c2](https://github.com/GMOD/graph-fold/commit/d6370c2ed2256e8e681e8c263c116f5089dfebdc))
+- An open branch whose far end is reversed or out of order states its own bp as its own, not as a size of the reversal or the displacement ([233fe3e](https://github.com/GMOD/graph-fold/commit/233fe3ef10d1ebd7953aeb06f89ba84cb79b763c))
+- Walks that differ past an end are separate tracks, so a branch's tracks hold its carriers alone; an inversion at an end the walk truly has is not open; a far end reversed or out of order is one branch whichever way the contig is written, its node named by side; ends are checked and may be graph-walks' END_KINDS numbers; foldRuns takes ends only in its input; and a test holds each open branch to the whole graph's branch the window cuts ([b381cab](https://github.com/GMOD/graph-fold/commit/b381cab9687da56de1477e47358732cde4668b7d))
+- The fourth end kind is nowhere, as gfa-tabix now names it, in END_KINDS and the strings accepted; the runs page says elsewhere is every other departure and that a host reads runs contained ([75c9204](https://github.com/GMOD/graph-fold/commit/75c92047cb71eb22c11784cc09b726c7415fae79))
+- Only a beyond departure draws an open branch; at every other end given, edge, elsewhere, nowhere or a departure that lacks bp, the piece's own bp past its last reference step fold into the reference node, with no lead or tail node and no event, since that length is the reader's cut and not the haplotype's; a nowhere end keeps its walk-end sentence, which the limits page says is true of the contig ([3099361](https://github.com/GMOD/graph-fold/commit/309936193f3cb8817a405d50b381724f7299194e))
+
+### Chores
+
+- Fetch windows with @gmod/gfa-tabix 10, the renamed @jbrowse/graph-walks ([62c0f1f](https://github.com/GMOD/graph-fold/commit/62c0f1fc460acbd2a522b88144e351eab059d65a))
+
+### Documentation
+
+- Shorten the README and move the rule, result, windows and limits into docs/ ([1a51606](https://github.com/GMOD/graph-fold/commit/1a5160610f97db92d6a569bd75c88d22ab5b2a0f))
+- A before-and-after diagram as the README hero, in plain words, and the real windows' pictures move to docs/windows.md ([ac84721](https://github.com/GMOD/graph-fold/commit/ac847214bfea29e24e7d40a5b76bbc7682775fd7))
+- The README hero sorts each difference by size against the threshold, drawn by scripts/hero.py ([8e8a430](https://github.com/GMOD/graph-fold/commit/8e8a43047603dbf5518ced3b073a29fe56b27d74))
+- The hero's size rule is a vertical panel on the right, so its scale is not read as genome position ([081ff4e](https://github.com/GMOD/graph-fold/commit/081ff4e1c17a26f40da6001568557f2338f486b8))
+- Shorter Docs entries in the README ([07fba26](https://github.com/GMOD/graph-fold/commit/07fba262953da3e84d94e9a9bf1a97e2d2346ea6))
+- The README's usage and options say less; every input field moves to docs/result.md ([480d5fd](https://github.com/GMOD/graph-fold/commit/480d5fd22f6baecc0a151d2ae0d4ea7a2b16910f))
+- A tighter README: shorter intro, no repeated links, plainer usage ([a7aa2ea](https://github.com/GMOD/graph-fold/commit/a7aa2ea70791e13b2fe5e6b4eb070cf6336eaaee))
+- Runs, open ends and the off-reference walk rule move to docs, in a new Runs and open ends page, with the README naming foldRuns and ends in a line and linking the page ([ecbf14c](https://github.com/GMOD/graph-fold/commit/ecbf14c5e0457bb659a3b9de6f1b9716d3cf1038))
+- Pnpm prove redraws the pictures whose tube lines named a count of distinct walks ([0bd4b7b](https://github.com/GMOD/graph-fold/commit/0bd4b7b4e85722cba14bcf7c53cec6aa6b04ba5a))
+
+### Features
+
+- FoldRuns folds walks given as runs, stretches of the reference and the bp of their own between them, by expanding them to steps on the existing core, and foldRunsProblems checks its result; it equals foldGraph of the same walks as steps outside members and the distinct-walk count on every fixture and 1,450 random graphs ([cf14bdb](https://github.com/GMOD/graph-fold/commit/cf14bdbfe2774a28e2b5d7fe08cb889bfca7d60a))
+- Ends, an option of foldGraph and a field of the runs input, says what lies past each end of a walk's piece; a departure whose far breakpoint lies past the window becomes a branch of its true sizes that continues past the window, with beyond, clamped to the window, its own bp a node over the threshold, clustering only with open branches of the same breakpoints, where the piece was said to start or end inside the window ([cc80bfe](https://github.com/GMOD/graph-fold/commit/cc80bfe1f735a34e2a67c18ad1a5f573af7388a7))
+
+### Performance Improvements
+
+- Each anchor is a range of consecutive reference steps, trimmed where a repeat of reference is dropped and walked segment by segment, so the fold's work scales with ranges, and foldRuns builds ranges straight from stretches without steps; foldRuns takes positions from the reference starts and refuses starts that leave a gap, a threshold under 1 bp is refused, and the step reader makes one lookup per step ([6e0c513](https://github.com/GMOD/graph-fold/commit/6e0c5132442a1b69f704c01f876a823b5d61e5bf))
+
+### Tests
+
+- Freeze 1.2.0's fold and its imports under test/oracle, and check foldGraph against it on every fixture at 50, 236, 1000 and 5000 bp, clustered or not, inversions walked or boxed, and on 3,000 seeded random graphs ([534480f](https://github.com/GMOD/graph-fold/commit/534480f7da41bc270c9481093b851c599bfa7e2f))
+
 ## [1.2.0](https://github.com/GMOD/graph-fold/compare/v1.1.0...v1.2.0) (2026-11-25)
 
 ### Bug Fixes
