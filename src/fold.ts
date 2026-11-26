@@ -7,6 +7,7 @@ import type { Anchor } from './chain.ts'
 import type { Site } from './cluster.ts'
 import type {
   BpSpread,
+  EndTable,
   Branch,
   BranchAllele,
   BranchCopies,
@@ -93,8 +94,8 @@ function times(count: number) {
 function repeatDescription(passes: Passes[]) {
   const totals = passes.map(p => p.total)
   const against = new Set(passes.map(p => p.against))
-  const least = Math.min(...totals)
-  const most = Math.max(...totals)
+  const least = totals.reduce((a, b) => Math.min(a, b), Infinity)
+  const most = totals.reduce((a, b) => Math.max(a, b), -Infinity)
   const walked = least === most ? times(most) : `${least} to ${most} times`
   const reversed =
     against.size > 1
@@ -196,6 +197,67 @@ export function unfolded<N extends InputNode, T extends WalkFields>(
   return result
 }
 
+export const END_KINDS = ['beyond', 'elsewhere', 'edge', 'ends'] as const
+
+export function endKind(table: EndTable, row: number) {
+  const kind = table.kinds[row]
+  return typeof kind === 'number' ? END_KINDS[kind] : kind
+}
+
+export function whyEndsUnreadable(
+  ends: WalkEnds | undefined,
+  walks: number,
+  nameOf: (row: number) => string,
+) {
+  const problems = (['before', 'after'] as const).flatMap(side => {
+    const table = ends?.[side]
+    const columns =
+      table === undefined
+        ? []
+        : ([
+            ['kinds', table.kinds.length],
+            ['pos', table.pos.length],
+            ['reversed', table.reversed.length],
+            ['ownBp', table.ownBp.length],
+            ['missingBp', table.missingBp.length],
+          ] as const)
+    const short = columns.find(([, length]) => length !== walks)
+    const rows = Array.from(
+      { length: table === undefined || short !== undefined ? 0 : walks },
+      (_, row) => row,
+    )
+    const unknown = rows.find(
+      row =>
+        table !== undefined &&
+        !END_KINDS.some(kind => kind === endKind(table, row)),
+    )
+    const unplaced = rows.find(row => {
+      const kind = table === undefined ? undefined : endKind(table, row)
+      return (
+        table !== undefined &&
+        (kind === 'beyond' || kind === 'elsewhere') &&
+        !(
+          Number.isFinite(table.pos[row]) &&
+          table.ownBp[row]! >= 0 &&
+          table.missingBp[row]! >= 0
+        )
+      )
+    })
+    return short !== undefined
+      ? [`ends.${side} has ${short[1]} ${short[0]} for ${walks} walks`]
+      : unknown !== undefined
+        ? [
+            `ends.${side} gives ${nameOf(unknown)} the end kind ${String(table?.kinds[unknown])}`,
+          ]
+        : unplaced !== undefined
+          ? [
+              `ends.${side} gives ${nameOf(unplaced)} a departure without a finite position and own bp`,
+            ]
+          : []
+  })
+  return problems[0]
+}
+
 export function whyRefused(
   threshold: number,
   referenceRevisits: number | undefined,
@@ -259,7 +321,7 @@ export function foldWindow<T extends WalkFields>(
     const table = starts ? ends?.before : ends?.after
     const pos = table?.pos[index] ?? Number.NaN
     const outside = pos <= refPos(0) || pos >= refPos(refNames.length)
-    const kind = table?.kinds[index]
+    const kind = table === undefined ? undefined : endKind(table, index)
     const departs =
       (kind === 'beyond' || kind === 'elsewhere') &&
       table?.missingBp[index] === 0
@@ -270,12 +332,11 @@ export function foldWindow<T extends WalkFields>(
     const replaced = Math.abs(at - pos)
     const farReversed = (table?.reversed[index] !== 0) !== run.reversed
     const inOrder = outsideLeft ? pos <= at : pos >= at
-    const verb = starts ? 'leaves' : 'rejoins'
     const description = farReversed
-      ? `${verb} the reference outside the window, reversed`
+      ? 'joins the reference outside the window, reversed'
       : inOrder
         ? undefined
-        : `${verb} the reference outside the window, out of order`
+        : 'joins the reference outside the window, out of order'
     const inserted = own >= threshold ? own : 0
     const end: OpenEnd = {
       boundary,
@@ -318,15 +379,15 @@ export function foldWindow<T extends WalkFields>(
     })
     const firstRun = runs[0]
     const lastRun = runs.at(-1)
-    const told = (kind: string | undefined) =>
-      kind === undefined || kind === 'ends'
+    const kinds = [
+      ends === undefined ? undefined : endKind(ends.before, walk.row),
+      ends === undefined ? undefined : endKind(ends.after, walk.row),
+    ]
     return {
       ...walk,
       runs,
-      told: [
-        told(ends?.before.kinds[walk.row]),
-        told(ends?.after.kinds[walk.row]),
-      ],
+      told: kinds.map(kind => kind === undefined || kind === 'ends'),
+      truly: kinds.map(kind => kind === 'ends'),
       opens: [
         firstRun === undefined
           ? undefined
@@ -498,6 +559,7 @@ export function foldWindow<T extends WalkFields>(
   const branches = new Map<string, BranchDraft>()
   const carriers = new Map<string, Set<number>>()
   const tallies = new Map<string, BranchTally>()
+  const marked = new Map<number, string[]>()
   const carry = (
     key: string,
     walk: { index: number },
@@ -505,6 +567,17 @@ export function foldWindow<T extends WalkFields>(
   ) => {
     branches.set(key, branches.get(key) ?? branch())
     carriers.set(key, (carriers.get(key) ?? new Set()).add(walk.index))
+    if (
+      ends !== undefined &&
+      (key.startsWith('open:') || key.startsWith('end:'))
+    ) {
+      const marks = marked.get(walk.index)
+      if (marks === undefined) {
+        marked.set(walk.index, [key])
+      } else {
+        marks.push(key)
+      }
+    }
   }
   const repeats = new Map<string, Map<number, Passes>>()
   const piecesOf = (run: ChainedRun & { drawn: Detour[] }) => {
@@ -707,7 +780,10 @@ export function foldWindow<T extends WalkFields>(
       )
       const node =
         inserted > 0
-          ? branchNode(`open:${inside}:${inserted}:${open.beyond}`, inserted)
+          ? branchNode(
+              `open:${inside}:${open.outsideLeft ? 'left' : 'right'}:${inserted}:${open.beyond}`,
+              inserted,
+            )
           : undefined
       const span = open.outsideLeft
         ? { refStart: refPos(0), refEnd: at }
@@ -890,7 +966,9 @@ export function foldWindow<T extends WalkFields>(
       const end = whole ? run.end : (segments[alone.at(-1) ?? 0]?.end ?? 0)
       const aloneBp = alone.reduce((bp, s) => bp + segments[s]!.length, 0)
       if (against(run) && (whole || aloneBp >= threshold)) {
-        const open = r === 0 || r === runs.length - 1
+        const open =
+          (r === 0 && walk.truly[0] !== true) ||
+          (r === runs.length - 1 && walk.truly[1] !== true)
         carry(`inversion:${start}:${end}:${open}`, walk, () => ({
           kind: 'inversion',
           description: 'inversion',
@@ -1103,8 +1181,8 @@ export function foldWindow<T extends WalkFields>(
       tally !== undefined && alleles.length > 1
         ? {
             members: alleles.length,
-            minLength: Math.min(...sizes),
-            maxLength: Math.max(...sizes),
+            minLength: sizes.reduce((a, b) => Math.min(a, b), Infinity),
+            maxLength: sizes.reduce((a, b) => Math.max(a, b), -Infinity),
             haplotypes: haplotypesIn(tally.walks),
           }
         : undefined
@@ -1121,9 +1199,14 @@ export function foldWindow<T extends WalkFields>(
         }
   }
   const groups = new Map<string, number[]>()
-  foldedWalks.forEach(({ sequence }, w) => {
-    const key = sequence.join()
-    groups.set(key, [...(groups.get(key) ?? []), w])
+  foldedWalks.forEach(({ walk, sequence }, w) => {
+    const key = [sequence.join(), ...(marked.get(walk.index) ?? [])].join('\n')
+    const group = groups.get(key)
+    if (group === undefined) {
+      groups.set(key, [w])
+    } else {
+      group.push(w)
+    }
   })
   const trackOfWalk = new Map<number, number>()
   const refHaplotypes = haplotypesIn([reference])
@@ -1382,6 +1465,9 @@ export function foldGraph<N extends InputNode, T extends InputTrack>(
     window.refNames.length === 0
       ? `there is no reference walk at track ${reference}`
       : (missing ??
+        whyEndsUnreadable(ends, tracks.length, row =>
+          trackName(tracks[row]!, row),
+        ) ??
         whyRefused(
           threshold,
           referenceRevisits,

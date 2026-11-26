@@ -1,8 +1,15 @@
 import { describe, expect, test } from 'vitest'
 
-import { branchLabel, foldGraph, foldProblems } from '../src/index.ts'
+import {
+  END_KINDS,
+  branchLabel,
+  foldGraph,
+  foldProblems,
+} from '../src/index.ts'
+import { seeded } from './random.ts'
 
 import type {
+  Branch,
   EndKind,
   EndTable,
   FoldOptions,
@@ -116,16 +123,16 @@ describe('a walk that leaves the reference outside the window', () => {
       refStart: 12_000,
       refEnd: 14_000,
       beyond: 15_000,
-      nodes: ['open:b:2363:15000'],
+      nodes: ['open:b:right:2363:15000'],
       from: 'a~b',
       anchored: true,
     })
-    expect(sequences).toEqual(['a~b c~d', 'a~b open:b:2363:15000'])
+    expect(sequences).toEqual(['a~b c~d', 'a~b open:b:right:2363:15000'])
     expect(result.walks.slice(1).map(walk => walk.steps)).toEqual([
       [
         {
           step: 1,
-          node: 'open:b:2363:15000',
+          node: 'open:b:right:2363:15000',
           insertedBp: 0,
           skippedBp: 0,
           clippedBp: 2363,
@@ -136,7 +143,7 @@ describe('a walk that leaves the reference outside the window', () => {
       [
         {
           step: 1,
-          node: 'open:b:2363:15000',
+          node: 'open:b:right:2363:15000',
           insertedBp: 0,
           skippedBp: 0,
           clippedBp: 1863,
@@ -166,7 +173,7 @@ describe('a walk that leaves the reference outside the window', () => {
       [10_000, 12_000, 9000],
       [12_000, 14_000, 15_000],
     ])
-    expect(sequences).toEqual(['a~b c~d', '-a~b', '-c~d open:c:600:9000'])
+    expect(sequences).toEqual(['a~b c~d', '-a~b', '-c~d open:c:left:600:9000'])
   })
 
   test('a far step against the walk, or on the wrong side, says so', () => {
@@ -181,8 +188,8 @@ describe('a walk that leaves the reference outside the window', () => {
       },
     ])
     expect(labels).toEqual([
-      'rejoins the reference outside the window, reversed, 1 of 3, continues past the window',
-      'leaves the reference outside the window, out of order, 800 bp of its own, 1 of 3, continues past the window',
+      'joins the reference outside the window, reversed, 1 of 3, continues past the window',
+      'joins the reference outside the window, out of order, 800 bp of its own, 1 of 3, continues past the window',
     ])
   })
 
@@ -216,8 +223,8 @@ describe('a walk that leaves the reference outside the window', () => {
       'replacement 935 bp for 4 kb, 1 of 5, continues past the window',
     ])
     expect(clustered.sequences.slice(1)).toEqual([
-      'a~b open:b:935:15000',
-      'a~b open:b:935:16000',
+      'a~b open:b:right:935:15000',
+      'a~b open:b:right:935:16000',
     ])
   })
 })
@@ -273,5 +280,227 @@ describe('ends the fold does not draw', () => {
       'a~d',
       'lead:a:5 a~d',
     ])
+  })
+})
+
+describe('what the fold reads past an end keeps its counts true', () => {
+  test('walks that start at one breakpoint for different reasons are not one track', () => {
+    const { result } = foldEnds([
+      { sequence: 'c d', before: { kind: 'beyond', pos: 8000, ownBp: 0 } },
+      { sequence: 'c d', before: { kind: 'beyond', pos: 2000, ownBp: 0 } },
+      { sequence: 'c d', before: { kind: 'ends', pos: Number.NaN } },
+    ])
+    expect(result.branches).toHaveLength(3)
+    for (const branch of result.branches) {
+      expect(
+        branch.tracks.reduce(
+          (sum, id) => sum + result.tracks[id]!.haplotypes,
+          0,
+        ),
+      ).toBe(branch.haplotypes)
+    }
+  })
+
+  test('an inversion at an end the walk truly has does not continue past the window', () => {
+    const { labels } = foldEnds([
+      { sequence: 'a b -d -c', after: { kind: 'ends', pos: Number.NaN } },
+    ])
+    expect(labels).toEqual(['inversion 2 kb, 1 of 2'])
+  })
+
+  test('one junction read from a contig written either way is one branch', () => {
+    const { labels } = foldEnds([
+      {
+        sequence: 'a b',
+        after: { kind: 'elsewhere', pos: 15_000, reversed: true, ownBp: 0 },
+      },
+      {
+        sequence: '-b -a',
+        before: { kind: 'elsewhere', pos: 15_000, reversed: false, ownBp: 0 },
+      },
+    ])
+    expect(labels).toEqual([
+      'joins the reference outside the window, reversed, 2 of 3, continues past the window',
+    ])
+  })
+
+  test('kinds may be the numbers of END_KINDS', () => {
+    const tracks = [
+      { name: 'ref', sequence: ['a', 'b', 'c', 'd'], indexOfFirstBase: 10_000 },
+      { name: 'hap1', sequence: ['c', 'd'] },
+    ]
+    const row = (kind: number, pos: number) => ({
+      kinds: Uint8Array.of(3, kind),
+      pos: [Number.NaN, pos],
+      reversed: [0, 0],
+      ownBp: [0, 0],
+      missingBp: [0, 0],
+    })
+    const result = foldGraph(nodes, tracks, {
+      ends: {
+        before: row(END_KINDS.indexOf('beyond'), 8000),
+        after: row(3, Number.NaN),
+      },
+    })
+    expect(result.branches.map(b => b.description)).toEqual(['deletion'])
+  })
+
+  test('ends the fold cannot read are refused, with the reason', () => {
+    const tracks = [reference, { name: 'hap1', sequence: ['c', 'd'] }]
+    const reason = (before: EndTable) => {
+      const result = foldGraph(nodes, tracks, {
+        ends: { before, after: table([undefined, undefined]) },
+      })
+      return result.folded ? undefined : result.reason
+    }
+    expect(reason(table([undefined]))).toBe(
+      'ends.before has 1 kinds for 2 walks',
+    )
+    expect(reason({ ...table([undefined, undefined]), kinds: [3, 9] })).toBe(
+      'ends.before gives hap1 the end kind 9',
+    )
+    expect(
+      reason(table([undefined, { kind: 'beyond', pos: Number.NaN }])),
+    ).toBe(
+      'ends.before gives hap1 a departure without a finite position and own bp',
+    )
+  })
+})
+
+describe("an open branch is the whole graph's branch, cut by the window", () => {
+  test('on 500 seeded random graphs, for each departure across a window edge', () => {
+    let matched = 0
+    for (let seed = 1; seed <= 500; seed++) {
+      const random = seeded(seed)
+      const count = 12 + random.below(20)
+      const names = Array.from({ length: count }, (_, i) => `r${i}`)
+      const all: InputNode[] = names.map(name => ({
+        name,
+        sequenceLength: 50 + random.below(2000),
+      }))
+      const walks = Array.from({ length: 6 }, (_, w) => {
+        const sequence: string[] = []
+        let i = 0
+        while (i < count) {
+          const roll = random.next()
+          if (roll < 0.15) {
+            i += 1 + random.below(6)
+          } else if (roll < 0.25) {
+            const name = `x${w}:${i}`
+            all.push({ name, sequenceLength: random.below(3000) })
+            sequence.push(name)
+            i += random.below(3)
+          } else {
+            sequence.push(names[i]!)
+            i += 1
+          }
+        }
+        return sequence
+      })
+      const threshold = 50 + random.below(2000)
+      const lengths = new Map(all.map(n => [n.name, n.sequenceLength ?? 0]))
+      const at = [10_000]
+      for (const name of names) {
+        at.push(at.at(-1)! + lengths.get(name)!)
+      }
+      const index = new Map(names.map((name, i) => [name, i]))
+      const whole = foldGraph(
+        all,
+        [
+          { name: 'ref', sequence: names, indexOfFirstBase: 10_000 },
+          ...walks.map((sequence, w) => ({ name: `hap${w}`, sequence })),
+        ],
+        { threshold },
+      )
+      const from = 2 + random.below(4)
+      const to = count - 2 - random.below(4)
+      const inside = (step: string) => {
+        const i = index.get(step)
+        return i !== undefined && i >= from && i < to
+      }
+      const pieces = walks.flatMap(sequence => {
+        const first = sequence.findIndex(inside)
+        const last = sequence.findLastIndex(inside)
+        const end = (side: 'before' | 'after') => {
+          const outward =
+            side === 'before'
+              ? sequence.slice(0, first).reverse()
+              : sequence.slice(last + 1)
+          const far = outward.findIndex(step => index.has(step))
+          const ownBp = outward
+            .slice(0, far < 0 ? outward.length : far)
+            .reduce((bp, step) => bp + lengths.get(step)!, 0)
+          const ref = far < 0 ? undefined : index.get(outward[far]!)!
+          return ref === undefined
+            ? { kind: 'ends' as const, pos: Number.NaN, ownBp }
+            : {
+                kind: 'beyond' as const,
+                pos: side === 'before' ? at[ref + 1]! : at[ref]!,
+                ownBp,
+              }
+        }
+        return first < 0
+          ? []
+          : [
+              {
+                sequence: sequence.slice(first, last + 1).join(' '),
+                before: end('before'),
+                after: end('after'),
+              },
+            ]
+      })
+      const window = foldGraph(
+        all,
+        [
+          {
+            name: 'ref',
+            sequence: names.slice(from, to),
+            indexOfFirstBase: at[from]!,
+          },
+          ...pieces.map((piece, w) => ({
+            name: `hap${w}`,
+            sequence: piece.sequence.split(' '),
+          })),
+        ],
+        {
+          threshold,
+          ends: {
+            before: table([undefined, ...pieces.map(piece => piece.before)]),
+            after: table([undefined, ...pieces.map(piece => piece.after)]),
+          },
+        },
+      )
+      if (!whole.folded || !window.folded) {
+        throw new Error(`seed ${seed} did not fold`)
+      }
+      const crossing = whole.branches.filter(
+        b =>
+          b.kind !== 'inversion' &&
+          b.refEnd > b.refStart &&
+          ((b.refStart <= at[from]! &&
+            b.refEnd >= at[from]! &&
+            b.refEnd < at[to]!) ||
+            (b.refStart > at[from]! &&
+              b.refStart <= at[to]! &&
+              b.refEnd >= at[to]!)),
+      )
+      const open = window.branches.filter(
+        b => b.beyond !== undefined && b.deletedBp > 0,
+      )
+      const shape = (b: Branch, left: number, right: number) =>
+        [b.kind, b.insertedBp, b.deletedBp, left, right, b.haplotypes].join()
+      expect(
+        open
+          .map(b =>
+            b.beyond! <= at[from]!
+              ? shape(b, b.beyond!, b.refEnd)
+              : shape(b, b.refStart, b.beyond!),
+          )
+          .sort(),
+        `seed ${seed}`,
+      ).toEqual(crossing.map(b => shape(b, b.refStart, b.refEnd)).sort())
+      matched += open.length
+    }
+    expect(matched).toBeGreaterThan(200)
   })
 })

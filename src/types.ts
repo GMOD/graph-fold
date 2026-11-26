@@ -19,7 +19,7 @@ export interface InputTrack extends WalkFields {
 export type EndKind = 'beyond' | 'elsewhere' | 'edge' | 'ends'
 
 export interface EndTable {
-  kinds: readonly EndKind[]
+  kinds: ArrayLike<EndKind> | ArrayLike<number>
   pos: ArrayLike<number>
   reversed: ArrayLike<number>
   ownBp: ArrayLike<number>
@@ -69,7 +69,7 @@ export interface FoldOptions {
   ends?: WalkEnds
 }
 
-export type RunsFoldOptions = Omit<FoldOptions, 'reference'>
+export type RunsFoldOptions = Omit<FoldOptions, 'reference' | 'ends'>
 
 export interface ClusterInfo {
   members: number

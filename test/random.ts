@@ -1,9 +1,4 @@
-import type {
-  EndTable,
-  FoldOptions,
-  InputNode,
-  InputTrack,
-} from '../src/index.ts'
+import type { FoldOptions, InputNode, InputTrack } from '../src/index.ts'
 
 export function seeded(seed: number) {
   let state = seed >>> 0
@@ -187,7 +182,7 @@ export function randomEnds(
       ownBp: random.pick([0, random.below(60), random.below(5000)]),
       missingBp: random.chance(0.1) ? 1 + random.below(100) : 0,
     }))
-    const result: EndTable = {
+    const result = {
       kinds: ends.map(end => end.kind),
       pos: ends.map(end => end.pos),
       reversed: ends.map(end => end.reversed),
@@ -198,3 +193,5 @@ export function randomEnds(
   }
   return { before: table(), after: table() }
 }
+
+export type RandomEnds = ReturnType<typeof randomEnds>

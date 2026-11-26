@@ -1,4 +1,4 @@
-import { foldWindow, unfolded, whyRefused } from './fold.ts'
+import { foldWindow, unfolded, whyEndsUnreadable, whyRefused } from './fold.ts'
 
 import type { Anchor } from './chain.ts'
 import type { CoreWalk, FoldWindow } from './fold.ts'
@@ -86,6 +86,7 @@ function whyRunsUnreadable(
           : base !== undefined && base !== starts[0]
             ? `the reference track starts at ${base} and its first node at ${starts[0]}`
             : (stretchProblem() ??
+              whyEndsUnreadable(input.ends, tracks.length, trackName) ??
               whyRefused(threshold, referenceRevisits, repeats))
 }
 

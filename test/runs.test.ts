@@ -13,13 +13,12 @@ import { randomEnds, randomGraph } from './random.ts'
 import { stepsToRuns } from './steps-to-runs.ts'
 
 import type {
-  EndTable,
   FoldOptions,
   InputNode,
   InputTrack,
   RunsInput,
-  WalkEnds,
 } from '../src/index.ts'
+import type { RandomEnds } from './random.ts'
 
 function outsideIdentity(result: unknown) {
   const { members: _, ...rest } = JSON.parse(JSON.stringify(result))
@@ -42,12 +41,12 @@ function agrees(
   nodes: InputNode[],
   tracks: InputTrack[],
   options: FoldOptions,
-  ends?: WalkEnds,
+  ends?: RandomEnds,
 ) {
   const reference = options.reference ?? 0
   const { input, tracks: ordered } = stepsToRuns(nodes, tracks, reference)
   const { reference: _, ...rest } = options
-  const withReference = (table: EndTable) => ({
+  const withReference = (table: RandomEnds['before']) => ({
     kinds: ['ends' as const, ...table.kinds],
     pos: [0, ...Array.from(table.pos)],
     reversed: [0, ...Array.from(table.reversed)],
