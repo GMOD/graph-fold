@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 
 import { walkFile, windows } from './windows.ts'
 
-import type { GraphTables } from '@jbrowse/graph-walks'
+import type { GraphTables } from '@gmod/gfa-tabix'
 
 function distinctTracks({ nodes, walks }: GraphTables, reference: string) {
   const groups = new Map<
@@ -34,28 +34,24 @@ function distinctTracks({ nodes, walks }: GraphTables, reference: string) {
   )
 }
 
-const graphWalks: typeof import('@jbrowse/graph-walks') = await import(
-  process.env.GRAPH_WALKS ?? '@jbrowse/graph-walks'
+const gfaTabix: typeof import('@gmod/gfa-tabix') = await import(
+  process.env.GFA_TABIX ?? '@gmod/gfa-tabix'
 )
-const { CUT_PRESETS, WalkReader } = graphWalks
+const { CUT_PRESETS, WalkFile } = gfaTabix
 const force = process.argv.includes('--force')
-const reader = WalkReader.open(walkFile)
-const { references } = await reader.header()
-for (const { refName, start, end, file } of windows) {
+const walks = new WalkFile({ walksUrl: walkFile })
+for (const { refName: contig, start, end, file } of windows) {
   if (force || !existsSync(file)) {
-    const anchor = await reader.sequenceFor(references[0] ?? '', refName)
-    if (anchor === undefined) {
-      throw new Error(`the walk file has no sequence ${refName}`)
-    }
-    const { graph, kept, fragments } = await reader.cut(
-      anchor,
-      { start, end },
+    const { graph, kept, fragments, refName } = await walks.getCutForRange(
+      contig,
+      start,
+      end,
       { ...CUT_PRESETS.figure, expand: () => true, links: 'none' },
     )
     const tables = graph.tables(kept, fragments, [])
     const window = {
       source: walkFile,
-      refName: anchor,
+      refName,
       start,
       end,
       revisited: tables.revisited,
@@ -63,7 +59,7 @@ for (const { refName, start, end, file } of windows) {
         name,
         sequenceLength: tables.nodes.lengths[i]!,
       })),
-      tracks: distinctTracks(tables, anchor),
+      tracks: distinctTracks(tables, refName),
     }
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, JSON.stringify(window))

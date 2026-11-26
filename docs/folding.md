@@ -138,12 +138,12 @@ copy of reference sequence, and the window comes back unfolded.
 
 - `referenceRevisits` is the number of nodes the reference passes more than once
   anywhere in the graph, not in the window.
-  [@jbrowse/graph-walks](https://github.com/GMOD/graph-walks) gives it as
+  [@gmod/gfa-tabix](https://github.com/GMOD/gfa-tabix-js) gives it as
   `tables.revisited`, which is the walk file header's count over the whole file.
   Above 0, the window is not folded
-- Absent, 0 or NaN, which graph-walks gives for a header with no count, the fold
-  looks at the window alone: it is not folded if its reference track steps a
-  node twice
+- Absent, 0 or NaN, which @gmod/gfa-tabix gives for a header with no count, the
+  fold looks at the window alone: it is not folded if its reference track steps
+  a node twice
 - The count is 0 for Minigraph-Cactus and minigraph graphs, whose reference is
   acyclic. A pggb graph is refused only where its reference revisits a node: a
   pggb graph of four E. coli genomes whose header counts 0 folds, and is a test

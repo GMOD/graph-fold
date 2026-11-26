@@ -1,10 +1,11 @@
 # Limits
 
-- **Driven by steps, not graph-walks' departures.** The fold reads the tracks
-  handed to the layout, so it folds a graph from any source. A departure
-  graph-walks reports without steps, one that jumps the window or carries more
-  than `attachBp`, is not in the tracks: the walk is drawn stopping, and the
-  branch list says `walk ends inside the window`, not what the departure does
+- **Driven by steps, not @gmod/gfa-tabix's departures.** The fold reads the
+  tracks handed to the layout, so it folds a graph from any source. A departure
+  @gmod/gfa-tabix reports without steps, one that jumps the window or carries
+  more than `attachBp`, is not in the tracks: the walk is drawn stopping, and
+  the branch list says `walk ends inside the window`, not what the departure
+  does
 - **An insertion is its site and its length.** Two alleles of one length at one
   site are one branch whatever their sequence; `members` lists the nodes of both
 - **A duplication the graph holds off the reference is an insertion.** C4 and

@@ -21,9 +21,9 @@ haplotypes with the deletion pass over 45.5 kb of reference without reading it:
 
 ## Three windows
 
-HPRC v2.1 Minigraph-Cactus, GRCh38, 464 haplotypes, cut with graph-walks' figure
-preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`, banded by
-`layers: [{ data: 'haplotypes', stat: 'coarsen' }]` and unbanded.
+HPRC v2.1 Minigraph-Cactus, GRCh38, 464 haplotypes, cut with @gmod/gfa-tabix's
+figure preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`,
+banded by `layers: [{ data: 'haplotypes', stat: 'coarsen' }]` and unbanded.
 
 | window          | graph                               | nodes | distinct walks | columns, banded | px wide, banded | columns, unbanded | px wide, unbanded |
 | --------------- | ----------------------------------- | ----- | -------------- | --------------- | --------------- | ----------------- | ----------------- |
@@ -64,14 +64,15 @@ preset. Layout is tubemap-core's with `nodeWidthOption: 'compressed'`, banded by
   same fold as tubes, and `chr1-deletion-fold-1000-clustered-banded.png` the
   chr1 fold banded
 - `pnpm run fetch` cuts the windows and `pnpm prove` prints the table, checks
-  the invariants and writes the pictures. `TUBEMAP_CORE` and `GRAPH_WALKS` name
+  the invariants and writes the pictures. `TUBEMAP_CORE` and `GFA_TABIX` name
   another build of either package for the scripts to import
 
 ## Duplications, inversions with structure, overlapping branches
 
 Three more windows of the same graph, each folded at 50, 1000 and 5000 bp, with
 and without clustering and with inversions boxed. `pnpm prove` checks the counts
-below, which are those of graph-walks' departures over the same breakpoints.
+below, which are those of @gmod/gfa-tabix's departures over the same
+breakpoints.
 
 - **chr14:34,543,000-34,562,000.** A 7.4 kb inversion on 196 haplotypes. Three
   more carry it with a 2.7 kb deletion inside the inverted block, and three

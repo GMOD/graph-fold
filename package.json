@@ -42,7 +42,7 @@
     "postversion": "git push --follow-tags"
   },
   "devDependencies": {
-    "@jbrowse/graph-walks": "^9.1.0",
+    "@gmod/gfa-tabix": "^10.0.0",
     "@jbrowse/tubemap-core": "^2.2.0",
     "@types/node": "^26.6.6",
     "git-cliff": "^2.14.2",

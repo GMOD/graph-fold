@@ -44,7 +44,7 @@ if (fold.folded) {
 - `nodes` and `tracks` are what `layoutTubeMap` takes, the reference track
   first, and `fold.nodes` and `fold.tracks` go straight back into it
 - `tables` is the cut's tables from
-  [@jbrowse/graph-walks](https://github.com/GMOD/graph-walks)
+  [@gmod/gfa-tabix](https://github.com/GMOD/gfa-tabix-js)
 
 ## Options
 
