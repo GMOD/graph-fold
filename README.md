@@ -1,12 +1,12 @@
 # @jbrowse/graph-fold
 
-A pangenome graph stores many people's genomes on top of one reference genome.
-Drawn as a tube map, every difference between them, even a single letter,
-becomes a branch of its own, so a few thousand bases of DNA turn into thousands
-of pieces and the large changes, the structural variants, are lost among them.
+A pangenome graph stores many people's genomes on one reference genome. Drawn as
+a tube map, every difference, even a single letter, is a branch of its own, and
+the large changes, the structural variants, are lost among thousands of small
+ones.
 
-graph-fold merges every difference smaller than a threshold into the reference
-and keeps the large ones, so the picture shows only what matters:
+`@jbrowse/graph-fold` merges every difference smaller than a threshold into the
+reference and keeps the large ones:
 
 ![Before: three people's DNA drawn along a gray reference genome, covered in tiny bumps wherever they differ, even by one letter. After: straight lines with only a deletion, an insertion and an inversion left. A panel on the right gives the rule: every difference sorted by size, and those under a line you pick, here 1,000 letters, merge into the reference while bigger ones are kept](docs/hero.svg)
 
@@ -16,9 +16,6 @@ and keeps the large ones, so the picture shows only what matters:
 - **Out:** fewer nodes and tracks in the same shape, plus the kept branches, who
   carries each one, and what was smoothed away on each walk
 - It reads node lengths, never a base, and has no dependencies
-
-Real windows of 464 human genomes, before and after, are in
-[Windows folded](docs/windows.md).
 
 ## Install
 
@@ -46,8 +43,8 @@ if (fold.folded) {
 
 - `nodes` and `tracks` are what `layoutTubeMap` takes, the reference track
   first, and `fold.nodes` and `fold.tracks` go straight back into it
-- Every input field is in [Input](docs/result.md#input), every output field in
-  [The result](docs/result.md)
+- `tables` is the cut's tables from
+  [@jbrowse/graph-walks](https://github.com/GMOD/graph-walks)
 
 ## Options
 
@@ -62,7 +59,7 @@ if (fold.folded) {
 
 ## Docs
 
-- [How a window folds](docs/folding.md): the rules, with options
+- [How a window folds](docs/folding.md): what is kept and what is merged
 - [Input and result](docs/result.md): every field in and out, and labels
 - [Windows folded](docs/windows.md): real examples, before and after
 - [Limits](docs/limits.md): what the fold can't tell apart
