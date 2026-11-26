@@ -30,10 +30,6 @@ function outsideIdentity(result: unknown) {
   })
 }
 
-function walksOffTheReference(input: RunsInput) {
-  return input.tracks.some((_, t) => input.offsets[t] === input.offsets[t + 1])
-}
-
 function agrees(
   nodes: InputNode[],
   tracks: InputTrack[],
@@ -109,8 +105,7 @@ describe('foldRuns equals foldGraph on the same walks read as runs', () => {
         step => (lengths.get(step.replace(/^-/, '')) ?? 0) > 0,
       )
       if (readable && placed) {
-        const { input } = stepsToRuns(nodes, tracks, options.reference ?? 0)
-        if (!walksOffTheReference(input)) {
+        {
           try {
             agrees(nodes, tracks, options)
           } catch (error) {
@@ -120,7 +115,7 @@ describe('foldRuns equals foldGraph on the same walks read as runs', () => {
         }
       }
     }
-    expect(compared).toBeGreaterThan(1400)
+    expect(compared).toBeGreaterThan(2000)
   }, 60_000)
 })
 
@@ -265,5 +260,43 @@ describe('runs the fold cannot read are refused, with the reason', () => {
       }),
     ).toMatch(/^the reference passes 1 nodes of this window more than once/)
     expect(foldRuns(input, { referenceRevisits: 2 }).folded).toBe(false)
+  })
+})
+
+describe('a walk with no stretch on the reference', () => {
+  test('is one node of its own bp, named by the walk, as foldGraph draws it', () => {
+    const input: RunsInput = {
+      reference: {
+        track: { name: 'ref' },
+        nodes: [
+          { name: 'a', sequenceLength: 100 },
+          { name: 'b', sequenceLength: 100 },
+        ],
+        starts: [0, 100],
+      },
+      tracks: [{ name: 'hap1' }, { name: 'hap2' }, { name: 'hap3' }],
+      offsets: [0, 2, 2, 2],
+      stretches: {
+        starts: [0, 100],
+        bp: [100, 100],
+        against: [0, 0],
+        offBefore: [0, 5000],
+      },
+      leadBp: [0, 5000, 3000],
+      tailBp: [0, 0, 2000],
+    }
+    const result = foldRuns(input, { threshold: 50 })
+    expect(foldRunsProblems(input, result)).toEqual([])
+    if (!result.folded) {
+      throw new Error(result.reason)
+    }
+    expect(result.tracks.map(track => track.sequence.join(' '))).toEqual([
+      'a b',
+      'a ins:a:5000 b',
+      'off:2:5000',
+      'off:3:5000',
+    ])
+    expect(result.members['off:2:5000']).toEqual([])
+    expect(result.walks.slice(2).map(walk => walk.steps)).toEqual([[], []])
   })
 })

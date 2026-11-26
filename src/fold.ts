@@ -840,17 +840,12 @@ function foldWindow<T extends InputTrack>(
       }
     })
 
-    if (runs.length === 0) {
-      steps.forEach((step, at) => {
-        const length = prefix[at + 1]! - prefix[at]!
-        const visit = ownVisit(
-          branchNode(step.name, length),
-          length,
-          step.reversed,
-        )
-        absorb(visit, at, at + 1)
-        visits.push(visit)
-      })
+    const ownBp = prefix.at(-1)!
+    if (runs.length === 0 && ownBp > 0) {
+      const node = branchNode(`off:${walk.index}:${ownBp}`, ownBp)
+      const visit = ownVisit(node, ownBp, false)
+      absorb(visit, 0, steps.length)
+      visits.push(visit)
     }
 
     const foldedSteps: FoldedStep[] = visits.flatMap((visit, step) => {

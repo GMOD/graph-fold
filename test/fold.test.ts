@@ -339,6 +339,33 @@ describe('window edges', () => {
     ])
   })
 
+  test('a walk with no step on the reference is one node of its own bp, named by the walk and shared with no other', () => {
+    const result = fold(
+      { a: 100, b: 100, x: 3000, y: 2000, z: 5000 },
+      ['a b', 'a x y b', 'x y', 'z', 'x y'],
+      { threshold: 50 },
+    )
+    expect(sequences(result)).toEqual([
+      'a b',
+      'a ins:a:5000 b',
+      'off:2:5000',
+      'off:3:5000',
+      'off:4:5000',
+    ])
+    expect(result.branches.map(b => b.description)).toEqual(['insertion'])
+    expect(result.nodes.filter(n => n.name.startsWith('off:'))).toEqual([
+      { name: 'off:2:5000', sequenceLength: 5000, kind: 'branch' },
+      { name: 'off:3:5000', sequenceLength: 5000, kind: 'branch' },
+      { name: 'off:4:5000', sequenceLength: 5000, kind: 'branch' },
+    ])
+    expect(result.members['off:2:5000']).toEqual(['x', 'y'])
+    expect(result.walks.slice(2).map(w => [w.foldedBp, w.steps])).toEqual([
+      [5000, []],
+      [5000, []],
+      [5000, []],
+    ])
+  })
+
   test('a walk that ends the threshold or more short of the reference is drawn ending there', () => {
     const result = fold(
       { a: 100, b: 100, c: 7000, x: 5 },

@@ -15,13 +15,74 @@ interface Window {
   revisited: number
 }
 
-const allowances: Record<string, (result: unknown) => unknown> = {}
+interface Graph {
+  nodes: InputNode[]
+  tracks: InputTrack[]
+  options: FoldOptions
+}
 
-function allowed(result: unknown) {
-  return Object.values(allowances).reduce(
-    (shaped, allowance) => allowance(shaped),
-    JSON.parse(JSON.stringify(result)),
-  )
+interface Allowance {
+  oracleInput?: (graph: Graph) => Graph
+  results?: (found: Shape, expected: Shape) => [Shape, Shape]
+}
+
+interface Shape {
+  folded: boolean
+  members?: Record<string, string[]>
+  tracks: { sequence: string[]; variation?: { walks: number } }[]
+}
+
+const nameOf = (step: string) => step.replace(/^-/, '')
+
+const allowances: Record<string, Allowance> = {
+  "a walk with no step on the reference is one node of its own bp, off:<walk>:<bp>, which the oracle is given in its place; that node holds the walk's nodes and not the stand-in, and a track of no steps counts walks of 0 bp as one distinct walk":
+    {
+      oracleInput: ({ nodes, tracks, options }) => {
+        const lengths = new Map(
+          nodes.map(n => [n.name, n.sequenceLength ?? n.seq?.length ?? 0]),
+        )
+        const reference = new Set(
+          tracks[options.reference ?? 0]?.sequence.map(nameOf),
+        )
+        const standIns: InputNode[] = []
+        const rewritten = tracks.map((track, index) => {
+          const bp = track.sequence.reduce(
+            (sum, step) => sum + (lengths.get(nameOf(step)) ?? 0),
+            0,
+          )
+          const off =
+            index !== (options.reference ?? 0) &&
+            track.sequence.every(step => !reference.has(nameOf(step)))
+          const name = `off:${index}:${bp}`
+          if (off && bp > 0) {
+            standIns.push({ name, sequenceLength: bp })
+          }
+          return off ? { ...track, sequence: bp > 0 ? [name] : [] } : track
+        })
+        return { nodes: [...nodes, ...standIns], tracks: rewritten, options }
+      },
+      results: (found, expected) => {
+        const standIn = (members: Record<string, string[]> | undefined) =>
+          Object.fromEntries(
+            Object.entries(members ?? {}).map(([node, held]) => [
+              node,
+              node.startsWith('off:') ? [] : held,
+            ]),
+          )
+        const empty = (shape: Shape) => ({
+          ...shape,
+          members: standIn(shape.members),
+          tracks: shape.tracks.map(track =>
+            track.sequence.length === 0 && track.variation !== undefined
+              ? { ...track, variation: { ...track.variation, walks: 1 } }
+              : track,
+          ),
+        })
+        return found.folded
+          ? [empty(found), empty(expected)]
+          : [found, expected]
+      },
+    },
 }
 
 function agrees(
@@ -29,8 +90,34 @@ function agrees(
   tracks: InputTrack[],
   options: FoldOptions,
 ) {
-  const found = allowed(foldGraph(nodes, tracks, options))
-  const expected = allowed(oracleFold(nodes, tracks, options))
+  const given = { nodes, tracks, options }
+  const original: Shape = JSON.parse(
+    JSON.stringify(oracleFold(nodes, tracks, options)),
+  )
+  const oracleInput = original.folded
+    ? Object.values(allowances).reduce(
+        (graph, allowance) => allowance.oracleInput?.(graph) ?? graph,
+        given,
+      )
+    : given
+  const plain: [Shape, Shape] = [
+    JSON.parse(JSON.stringify(foldGraph(nodes, tracks, options))),
+    original.folded
+      ? JSON.parse(
+          JSON.stringify(
+            oracleFold(
+              oracleInput.nodes,
+              oracleInput.tracks,
+              oracleInput.options,
+            ),
+          ),
+        )
+      : original,
+  ]
+  const [found, expected] = Object.values(allowances).reduce(
+    (pair, allowance) => allowance.results?.(pair[0], pair[1]) ?? pair,
+    plain,
+  )
   expect(firstDifference(found, expected)).toBe('')
 }
 
