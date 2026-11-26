@@ -1,4 +1,4 @@
-import { chain, runBounds } from './chain.ts'
+import { chain, endStep, firstRef, lastRef, runBounds } from './chain.ts'
 import { clusterLeaders, siteKey } from './cluster.ts'
 import { haplotypeCounter, haplotypeKey } from './haplotypes.ts'
 import { referenceLabel, trackLabel } from './labels.ts'
@@ -29,6 +29,17 @@ type BranchDraft = Omit<Branch, 'tracks' | 'anchored' | 'haplotypes'>
 
 interface Detour extends Site {
   pair: number
+}
+
+export interface CoreWalk {
+  index: number
+  row: number
+  name: string
+  freq: number
+  anchors: Anchor[]
+  steps: number
+  bp: number
+  hold: (from: number, to: number) => Iterable<string>
 }
 
 interface ChainedRun {
@@ -109,10 +120,8 @@ function stretchesOf(keys: (string | undefined)[]) {
   return stretches
 }
 
-function parseStep(step: string) {
-  return step.startsWith('-')
-    ? { name: step.slice(1), reversed: true }
-    : { name: step, reversed: false }
+function nodeName(step: string) {
+  return step.charCodeAt(0) === 45 ? step.slice(1) : step
 }
 
 function stepText(name: string, reversed: boolean) {
@@ -123,7 +132,7 @@ function lengthOfNode({ sequenceLength, seq }: InputNode) {
   return sequenceLength ?? seq?.length ?? 0
 }
 
-function trackName(track: InputTrack, index: number) {
+function trackName(track: WalkFields, index: number) {
   return track.name ?? `track ${index}`
 }
 
@@ -187,38 +196,40 @@ export function unfolded<N extends InputNode, T extends WalkFields>(
   return result
 }
 
-function whyUnfoldable(
-  nodes: InputNode[],
-  tracks: InputTrack[],
-  reference: number,
+export function whyRefused(
+  threshold: number,
   referenceRevisits: number | undefined,
+  repeats: number,
 ) {
-  const sequence = tracks[reference]?.sequence ?? []
-  const names = sequence.map(step => parseStep(step).name)
-  const repeats = names.length - new Set(names).size
-  const known = new Set(nodes.map(n => n.name))
-  const missing = tracks.flatMap((track, index) => {
-    const step = track.sequence.find(s => !known.has(parseStep(s).name))
-    return step === undefined
-      ? []
-      : [
-          `${trackName(track, index)} steps node ${parseStep(step).name}, which is not among the nodes`,
-        ]
-  })[0]
-  return sequence.length === 0
-    ? `there is no reference walk at track ${reference}`
-    : (missing ??
-        (referenceRevisits !== undefined && referenceRevisits > 0
-          ? `the reference passes ${referenceRevisits} nodes of the graph more than once, so a run off it may be a copy of reference sequence and not a variant`
-          : repeats > 0
-            ? `the reference passes ${repeats} nodes of this window more than once, so a run off it may be a copy of reference sequence and not a variant`
-            : undefined))
+  return !(threshold >= 1)
+    ? `the threshold is ${threshold} bp, and a fold needs 1 bp or more`
+    : referenceRevisits !== undefined && referenceRevisits > 0
+      ? `the reference passes ${referenceRevisits} nodes of the graph more than once, so a run off it may be a copy of reference sequence and not a variant`
+      : repeats > 0
+        ? `the reference passes ${repeats} nodes of this window more than once, so a run off it may be a copy of reference sequence and not a variant`
+        : undefined
 }
 
-function foldWindow<T extends InputTrack>(
-  nodes: InputNode[],
-  tracks: T[],
-  reference: number,
+export interface FoldWindow<T extends WalkFields> {
+  tracks: T[]
+  reference: number
+  refNames: string[]
+  refLengths: number[]
+  refBase: number
+  walks: CoreWalk[]
+  taken: (name: string) => boolean
+}
+
+export function foldWindow<T extends WalkFields>(
+  {
+    tracks,
+    reference,
+    refNames,
+    refLengths,
+    refBase,
+    walks: input,
+    taken,
+  }: FoldWindow<T>,
   threshold: number,
   cluster: boolean,
   tolerance: number,
@@ -226,17 +237,12 @@ function foldWindow<T extends InputTrack>(
   ends: WalkEnds | undefined,
 ) {
   const haplotypesIn = haplotypeCounter(tracks)
-  const lengths = new Map(nodes.map(n => [n.name, lengthOfNode(n)]))
-  const lengthOf = (name: string) => lengths.get(name) ?? 0
   const refTrack = tracks[reference]!
   const refName = trackName(refTrack, reference)
-  const refSteps = refTrack.sequence.map(parseStep)
-  const refIndex = new Map(refSteps.map((step, i) => [step.name, i]))
   const offsets = [0]
-  for (const step of refSteps) {
-    offsets.push(offsets.at(-1)! + lengthOf(step.name))
+  for (const length of refLengths) {
+    offsets.push(offsets.at(-1)! + length)
   }
-  const refBase = refTrack.indexOfFirstBase ?? 0
   const refPos = (boundary: number) => refBase + offsets[boundary]!
   const refBp = (from: number, to: number) => offsets[to]! - offsets[from]!
   const deletedOf = (site: Site) =>
@@ -252,7 +258,7 @@ function foldWindow<T extends InputTrack>(
   ) => {
     const table = starts ? ends?.before : ends?.after
     const pos = table?.pos[index] ?? Number.NaN
-    const outside = pos <= refPos(0) || pos >= refPos(refSteps.length)
+    const outside = pos <= refPos(0) || pos >= refPos(refNames.length)
     const kind = table?.kinds[index]
     const departs =
       (kind === 'beyond' || kind === 'elsewhere') &&
@@ -285,33 +291,17 @@ function foldWindow<T extends InputTrack>(
     return departs && outside ? end : undefined
   }
 
-  const walks = tracks.flatMap((track, index) => {
-    const name = trackName(track, index)
-    const steps = track.sequence.map(parseStep)
-    const prefix = [0]
-    for (const step of steps) {
-      prefix.push(prefix.at(-1)! + lengthOf(step.name))
-    }
-    const anchors = steps.flatMap((step, at) => {
-      const ref = refIndex.get(step.name)
-      return ref === undefined
-        ? []
-        : [
-            {
-              ref,
-              reversed: step.reversed !== refSteps[ref]!.reversed,
-              step: at,
-            },
-          ]
-    })
-    const runs = chain(anchors, offsets, threshold).map(run => {
+  const endBp = (anchor: Anchor) => anchor.bp + refBp(anchor.from, anchor.to)
+
+  const walks = input.map(walk => {
+    const runs = chain(walk.anchors, offsets, threshold).map(run => {
       const detours: Detour[] = []
       run.anchors.forEach((anchor, pair) => {
         if (pair > 0) {
           const before = run.anchors[pair - 1]!
-          const inserted = prefix[anchor.step]! - prefix[before.step + 1]!
-          const left = Math.min(before.ref, anchor.ref) + 1
-          const right = Math.max(before.ref, anchor.ref)
+          const inserted = anchor.bp - endBp(before)
+          const left = Math.min(lastRef(before), firstRef(anchor)) + 1
+          const right = Math.max(lastRef(before), firstRef(anchor))
           const deleted = refBp(left, right)
           if (inserted >= threshold || deleted >= threshold) {
             detours.push({
@@ -330,40 +320,27 @@ function foldWindow<T extends InputTrack>(
     const lastRun = runs.at(-1)
     const told = (kind: string | undefined) =>
       kind === undefined || kind === 'ends'
-    return index === reference
-      ? []
-      : [
-          {
-            index,
-            name,
-            freq: track.freq ?? 1,
-            steps,
-            prefix,
-            runs,
-            told: [
-              told(ends?.before.kinds[index]),
-              told(ends?.after.kinds[index]),
-            ],
-            opens: [
-              firstRun === undefined
-                ? undefined
-                : openEnd(
-                    index,
-                    true,
-                    firstRun,
-                    prefix[firstRun.anchors[0]!.step]!,
-                  ),
-              lastRun === undefined
-                ? undefined
-                : openEnd(
-                    index,
-                    false,
-                    lastRun,
-                    prefix.at(-1)! - prefix[lastRun.anchors.at(-1)!.step + 1]!,
-                  ),
-            ],
-          },
-        ]
+    return {
+      ...walk,
+      runs,
+      told: [
+        told(ends?.before.kinds[walk.row]),
+        told(ends?.after.kinds[walk.row]),
+      ],
+      opens: [
+        firstRun === undefined
+          ? undefined
+          : openEnd(walk.row, true, firstRun, firstRun.anchors[0]!.bp),
+        lastRun === undefined
+          ? undefined
+          : openEnd(
+              walk.row,
+              false,
+              lastRun,
+              walk.bp - endBp(lastRun.anchors.at(-1)!),
+            ),
+      ],
+    }
   })
 
   const siteWalks = new Map<string, { site: Site; walks: Set<number> }>()
@@ -423,8 +400,8 @@ function foldWindow<T extends InputTrack>(
   }))
 
   const unwalkedPast = (boundary: number, leftward: boolean) =>
-    leftward ? refBp(0, boundary) : refBp(boundary, refSteps.length)
-  const breakpoints = new Set([0, refSteps.length])
+    leftward ? refBp(0, boundary) : refBp(boundary, refNames.length)
+  const breakpoints = new Set([0, refNames.length])
   for (const { runs, opens } of drawn) {
     for (const open of opens) {
       if (open?.emitted === true) {
@@ -456,8 +433,8 @@ function foldWindow<T extends InputTrack>(
     for (let ref = start; ref < end; ref++) {
       segmentOf.push(segment)
     }
-    const first = refSteps[start]!.name
-    const last = refSteps[end - 1]!.name
+    const first = refNames[start]!
+    const last = refNames[end - 1]!
     return {
       name: end - start === 1 ? first : `${first}~${last}`,
       start,
@@ -482,7 +459,7 @@ function foldWindow<T extends InputTrack>(
       refStart: refPos(start),
       refEnd: refPos(end),
     })
-    members.set(name, new Set(refSteps.slice(start, end).map(s => s.name)))
+    members.set(name, new Set(refNames.slice(start, end)))
   }
   const branchNode = (name: string, length: number, at?: Site) => {
     if (!foldedNodes.has(name)) {
@@ -500,7 +477,7 @@ function foldWindow<T extends InputTrack>(
   }
 
   const unusedName = (name: string): string =>
-    lengths.has(name) ? unusedName(`${name}'`) : name
+    taken(name) ? unusedName(`${name}'`) : name
   const invertedCopy = (name: string) => {
     const original = foldedNodes.get(name)!
     const copy = unusedName(`inv:${name}`)
@@ -554,13 +531,12 @@ function foldWindow<T extends InputTrack>(
       : []
 
   const foldedWalks = drawn.map(walk => {
-    const { steps, prefix, runs } = walk
+    const { runs } = walk
     const visits: Visit[] = []
-    const absorb = (visit: Visit, from: number, to: number) => {
-      const bp = prefix[to]! - prefix[from]!
+    const absorb = (visit: Visit, from: number, to: number, bp: number) => {
       const held = members.get(visit.node)!
-      for (const step of steps.slice(from, to)) {
-        held.add(step.name)
+      for (const name of walk.hold(from, to)) {
+        held.add(name)
       }
       if (visit.original === undefined) {
         visit.extra += bp
@@ -568,12 +544,9 @@ function foldWindow<T extends InputTrack>(
         visit.original += bp
       }
     }
-    const hide = (visit: Visit, from: number, to: number) => {
-      absorb(visit, from, to)
-      visit.largestHidden = Math.max(
-        visit.largestHidden,
-        prefix[to]! - prefix[from]!,
-      )
+    const hide = (visit: Visit, from: number, to: number, bp: number) => {
+      absorb(visit, from, to, bp)
+      visit.largestHidden = Math.max(visit.largestHidden, bp)
     }
     const ownVisit = (node: string, length: number, reversed: boolean) => {
       const visit: Visit = {
@@ -594,14 +567,14 @@ function foldWindow<T extends InputTrack>(
       description: string,
       from: number,
       to: number,
+      bp: number,
       boundary: number,
       fallback: Visit | undefined,
     ) => {
-      const bp = prefix[to]! - prefix[from]!
       if (bp >= threshold || (fallback === undefined && bp > 0)) {
         const node = branchNode(`${label}:${bp}`, bp)
         const visit = ownVisit(node, bp, false)
-        absorb(visit, from, to)
+        absorb(visit, from, to, bp)
         visits.push(visit)
         carry(node, walk, () => ({
           kind: 'other',
@@ -615,14 +588,14 @@ function foldWindow<T extends InputTrack>(
         }))
       } else {
         if (fallback !== undefined && to > from) {
-          hide(fallback, from, to)
+          hide(fallback, from, to, bp)
         }
       }
     }
     const strandBp = [0, 0]
     for (const run of runs) {
       strandBp[Number(run.reversed)]! += run.anchors.reduce(
-        (bp, a) => bp + refBp(a.ref, a.ref + 1),
+        (bp, a) => bp + refBp(a.from, a.to),
         0,
       )
     }
@@ -630,7 +603,7 @@ function foldWindow<T extends InputTrack>(
     const mostlyReversed = flanksAgree
       ? runs[0]?.reversed === true
       : strandBp[1]! > strandBp[0]!
-    const refNameAt = (ref: number) => refSteps[ref]!.name
+    const refNameAt = (ref: number) => refNames[ref]!
     const walkEnd = (boundary: number, leftward: boolean, starts: boolean) => {
       const unwalked = unwalkedPast(boundary, leftward)
       if (unwalked >= threshold && leftward === (starts !== mostlyReversed)) {
@@ -738,7 +711,7 @@ function foldWindow<T extends InputTrack>(
           : undefined
       const span = open.outsideLeft
         ? { refStart: refPos(0), refEnd: at }
-        : { refStart: at, refEnd: refPos(refSteps.length) }
+        : { refStart: at, refEnd: refPos(refNames.length) }
       const kind =
         open.description !== undefined || (inserted > 0 && deletedBp > 0)
           ? 'other'
@@ -792,10 +765,11 @@ function foldWindow<T extends InputTrack>(
       node: string,
       from: number,
       to: number,
+      bp: number,
     ) => {
       const visit = ownVisit(node, foldedNodes.get(node)!.sequenceLength, false)
-      absorb(visit, from, to)
-      visit.clipped = Math.max(0, open.own - (prefix[to]! - prefix[from]!))
+      absorb(visit, from, to, bp)
+      visit.clipped = Math.max(0, open.own - bp)
       visits.push(visit)
     }
 
@@ -867,23 +841,26 @@ function foldWindow<T extends InputTrack>(
             walkEnd(entered, !run.reversed, true)
           }
           stretch(
-            `lead:${refNameAt(first.ref)}`,
+            `lead:${refNameAt(firstRef(first))}`,
             'sequence off the reference before the walk first meets it',
             0,
-            first.step,
+            first.at,
+            first.bp,
             entered,
             undefined,
           )
         } else if (leadNode !== undefined) {
-          openVisit(leadOpen, leadNode, 0, first.step)
+          openVisit(leadOpen, leadNode, 0, first.at, first.bp)
         }
       } else {
         const reached = before.reversed ? before.start : before.end
+        const left = before.anchors.at(-1)!
         stretch(
-          `join:${stepText(refNameAt(before.anchors.at(-1)!.ref), before.reversed)}:${stepText(refNameAt(first.ref), run.reversed)}`,
+          `join:${stepText(refNameAt(lastRef(left)), before.reversed)}:${stepText(refNameAt(firstRef(first)), run.reversed)}`,
           'sequence off the reference between two breakpoints',
-          before.anchors.at(-1)!.step + 1,
-          first.step,
+          endStep(left),
+          first.at,
+          first.bp - endBp(left),
           reached,
           visits.at(-1),
         )
@@ -926,7 +903,7 @@ function foldWindow<T extends InputTrack>(
             ? segmentNames(start, end).map(invertedCopy)
             : segmentNames(start, end),
           ...(start > 0 ? { from: segments[segmentOf[start - 1]!]!.name } : {}),
-          ...(end < refSteps.length
+          ...(end < refNames.length
             ? { to: segments[segmentOf[end]!]!.name }
             : {}),
           ...(open ? { open } : {}),
@@ -936,9 +913,7 @@ function foldWindow<T extends InputTrack>(
       const bySegment = new Map<number, Visit>()
       const byPair = new Map<number, Visit>()
       const elements: Visit[] = []
-      const covered: [number, number][] = []
       for (const { from, to, detour } of pieces) {
-        covered.push([from, to])
         for (const s of segmentsIn(from, to)) {
           const segment = segments[s]!
           const visit: Visit = {
@@ -977,26 +952,27 @@ function foldWindow<T extends InputTrack>(
       for (const visit of runVisits) {
         visits.push(visit)
       }
-      if (leadOpen !== undefined && leadNode === undefined && first.step > 0) {
-        hide(runVisits[0]!, 0, first.step)
+      if (leadOpen !== undefined && leadNode === undefined && first.at > 0) {
+        hide(runVisits[0]!, 0, first.at, first.bp)
       }
 
+      const skips = new Set(
+        run.drawn.flatMap(d => (d.right > d.left ? [d.pair] : [])),
+      )
       let home = runVisits[0]!
       run.anchors.forEach((anchor, pair) => {
         if (pair > 0) {
           const before = run.anchors[pair - 1]!
           const drawnAs = byPair.get(pair)
+          const gapBp = anchor.bp - endBp(before)
           if (drawnAs === undefined) {
-            hide(home, before.step + 1, anchor.step)
+            hide(home, endStep(before), anchor.at, gapBp)
           } else {
-            absorb(drawnAs, before.step + 1, anchor.step)
+            absorb(drawnAs, endStep(before), anchor.at, gapBp)
           }
-          const left = Math.min(before.ref, anchor.ref) + 1
-          const right = Math.max(before.ref, anchor.ref)
-          const skipDrawn = run.drawn.some(
-            d => d.pair === pair && d.right > d.left,
-          )
-          if (!skipDrawn && right > left) {
+          const left = Math.min(lastRef(before), firstRef(anchor)) + 1
+          const right = Math.max(lastRef(before), firstRef(anchor))
+          if (!skips.has(pair) && right > left) {
             for (const s of segmentsIn(left, right)) {
               const visit = bySegment.get(s) ?? home
               visit.largestSkipped = Math.max(
@@ -1006,25 +982,27 @@ function foldWindow<T extends InputTrack>(
             }
           }
         }
-        const visit = covered.some(
-          ([from, to]) => anchor.ref >= from && anchor.ref < to,
-        )
-          ? bySegment.get(segmentOf[anchor.ref]!)
-          : undefined
-        if (visit === undefined) {
-          absorb(home, anchor.step, anchor.step + 1)
-        } else {
-          visit.walked += refBp(anchor.ref, anchor.ref + 1)
-          home = visit
+        const lowest = segmentOf[anchor.from]!
+        const highest = segmentOf[anchor.to - 1]!
+        for (let k = 0; k <= highest - lowest; k++) {
+          const s = anchor.reversed ? highest - k : lowest + k
+          const from = Math.max(anchor.from, segments[s]!.start)
+          const to = Math.min(anchor.to, segments[s]!.end)
+          const visit = bySegment.get(s)
+          if (visit === undefined) {
+            const at = anchor.reversed
+              ? anchor.at + anchor.to - to
+              : anchor.at + from - anchor.from
+            absorb(home, at, at + to - from, refBp(from, to))
+          } else {
+            visit.walked += refBp(from, to)
+            home = visit
+          }
         }
       })
 
-      run.drawn.forEach(detour => {
-        reportDetour(
-          detour,
-          run.detours.find(d => d.pair === detour.pair)!,
-          byPair.get(detour.pair)?.node,
-        )
+      run.drawn.forEach((detour, k) => {
+        reportDetour(detour, run.detours[k]!, byPair.get(detour.pair)?.node)
       })
 
       if (r === runs.length - 1) {
@@ -1035,10 +1013,11 @@ function foldWindow<T extends InputTrack>(
           tailOpen === undefined ? undefined : reportOpen(tailOpen)
         if (tailOpen === undefined) {
           stretch(
-            `tail:${refNameAt(last.ref)}`,
+            `tail:${refNameAt(lastRef(last))}`,
             'sequence off the reference after the walk last leaves it',
-            last.step + 1,
-            steps.length,
+            endStep(last),
+            walk.steps,
+            walk.bp - endBp(last),
             left,
             undefined,
           )
@@ -1046,18 +1025,23 @@ function foldWindow<T extends InputTrack>(
             walkEnd(left, run.reversed, false)
           }
         } else if (tailNode !== undefined) {
-          openVisit(tailOpen, tailNode, last.step + 1, steps.length)
-        } else if (steps.length > last.step + 1) {
-          hide(visits.at(-1)!, last.step + 1, steps.length)
+          openVisit(
+            tailOpen,
+            tailNode,
+            endStep(last),
+            walk.steps,
+            walk.bp - endBp(last),
+          )
+        } else if (walk.steps > endStep(last)) {
+          hide(visits.at(-1)!, endStep(last), walk.steps, walk.bp - endBp(last))
         }
       }
     })
 
-    const ownBp = prefix.at(-1)!
-    if (runs.length === 0 && ownBp > 0) {
-      const node = branchNode(`off:${walk.index}:${ownBp}`, ownBp)
-      const visit = ownVisit(node, ownBp, false)
-      absorb(visit, 0, steps.length)
+    if (runs.length === 0 && walk.bp > 0) {
+      const node = branchNode(`off:${walk.index}:${walk.bp}`, walk.bp)
+      const visit = ownVisit(node, walk.bp, false)
+      absorb(visit, 0, walk.steps, walk.bp)
       visits.push(visit)
     }
 
@@ -1095,7 +1079,7 @@ function foldWindow<T extends InputTrack>(
     return {
       walk,
       sequence: visits.map(v => stepText(v.node, v.reversed)),
-      originalBp: prefix.at(-1)!,
+      originalBp: walk.bp,
       foldedBp: visits.reduce((sum, v) => sum + v.length, 0),
       insertedBp: total(s => s.insertedBp),
       skippedBp: total(s => s.skippedBp),
@@ -1302,6 +1286,83 @@ function foldWindow<T extends InputTrack>(
   return result
 }
 
+function stepsWindow<T extends InputTrack>(
+  nodes: InputNode[],
+  tracks: T[],
+  reference: number,
+) {
+  const refSequence = tracks[reference]?.sequence ?? []
+  const refNames = refSequence.map(nodeName)
+  const known = new Map(
+    nodes.map(n => [
+      n.name,
+      { length: lengthOfNode(n), ref: -1, reversed: false },
+    ]),
+  )
+  refSequence.forEach((step, ref) => {
+    const node = known.get(refNames[ref]!)
+    if (node !== undefined) {
+      node.ref = ref
+      node.reversed = step.charCodeAt(0) === 45
+    }
+  })
+  const missing: string[] = []
+  const walks = tracks.flatMap((track, index) => {
+    const anchors: Anchor[] = []
+    let bp = 0
+    track.sequence.forEach((step, at) => {
+      const name = nodeName(step)
+      const node = known.get(name)
+      if (node === undefined) {
+        if (missing.length === 0) {
+          missing.push(
+            `${trackName(track, index)} steps node ${name}, which is not among the nodes`,
+          )
+        }
+      } else {
+        if (node.ref >= 0 && index !== reference) {
+          const ref = node.ref
+          const reversed = (step.charCodeAt(0) === 45) !== node.reversed
+          const last = anchors.at(-1)
+          const continues =
+            last?.reversed === reversed &&
+            endStep(last) === at &&
+            (reversed ? ref === last.from - 1 : ref === last.to)
+          if (continues && reversed) {
+            last.from = ref
+          } else if (continues) {
+            last.to = ref + 1
+          } else {
+            anchors.push({ from: ref, to: ref + 1, reversed, at, bp })
+          }
+        }
+        bp += node.length
+      }
+    })
+    const walk: CoreWalk = {
+      index,
+      row: index,
+      name: trackName(track, index),
+      freq: track.freq ?? 1,
+      anchors,
+      steps: track.sequence.length,
+      bp,
+      hold: (from, to) => track.sequence.slice(from, to).map(nodeName),
+    }
+    return index === reference ? [] : [walk]
+  })
+  const window: FoldWindow<T> = {
+    tracks,
+    reference,
+    refNames,
+    refLengths: refNames.map(name => known.get(name)?.length ?? 0),
+    refBase: tracks[reference]?.indexOfFirstBase ?? 0,
+    walks,
+    taken: name => known.has(name),
+  }
+  return { window, missing: missing[0] }
+}
+
 export function foldGraph<N extends InputNode, T extends InputTrack>(
   nodes: N[],
   tracks: T[],
@@ -1316,12 +1377,19 @@ export function foldGraph<N extends InputNode, T extends InputTrack>(
     inversions = 'walk',
     ends,
   } = options
-  const reason = whyUnfoldable(nodes, tracks, reference, referenceRevisits)
+  const { window, missing } = stepsWindow(nodes, tracks, reference)
+  const reason =
+    window.refNames.length === 0
+      ? `there is no reference walk at track ${reference}`
+      : (missing ??
+        whyRefused(
+          threshold,
+          referenceRevisits,
+          window.refNames.length - new Set(window.refNames).size,
+        ))
   return reason === undefined
     ? foldWindow(
-        nodes,
-        tracks,
-        reference,
+        window,
         threshold,
         cluster,
         clusterTolerance,

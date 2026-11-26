@@ -23,13 +23,19 @@ import type {
 
 function outsideIdentity(result: unknown) {
   const { members: _, ...rest } = JSON.parse(JSON.stringify(result))
-  return sortedKeys({
-    ...rest,
-    tracks: rest.tracks.map((track: { variation?: { walks?: number } }) => ({
-      ...track,
-      variation: { ...track.variation, walks: undefined },
-    })),
-  })
+  return sortedKeys(rest)
+}
+
+function referenceMembers(
+  members: Record<string, string[]>,
+  reference: Set<string>,
+) {
+  return Object.fromEntries(
+    Object.entries(members).map(([node, held]) => [
+      node,
+      held.filter(name => reference.has(name)),
+    ]),
+  )
 }
 
 function agrees(
@@ -65,6 +71,10 @@ function agrees(
     expect(firstDifference(outsideIdentity(runs), outsideIdentity(steps))).toBe(
       '',
     )
+    const named = new Set(input.reference.nodes.map(node => node.name))
+    expect(
+      firstDifference(runs.members, referenceMembers(steps.members, named)),
+    ).toBe('')
   } else {
     expect([runs.reason, runs.haplotypes]).toEqual([
       steps.reason,
@@ -267,6 +277,39 @@ describe('runs the fold cannot read are refused, with the reason', () => {
     )
   })
 
+  test('a reference whose nodes leave a gap, or that starts where its first node does not', () => {
+    expect(
+      reason({
+        ...input,
+        reference: { ...input.reference, starts: [1000, 1100, 1111] },
+      }),
+    ).toBe('reference node b ends at 1110 and the next starts at 1111')
+    expect(
+      reason({
+        ...input,
+        reference: {
+          ...input.reference,
+          track: { name: 'ref', indexOfFirstBase: 0 },
+        },
+      }),
+    ).toBe('the reference track starts at 0 and its first node at 1000')
+  })
+
+  test('positions are the reference starts when its track gives none', () => {
+    const result = foldRuns(input, { threshold: 10 })
+    expect(result.branches.map(b => [b.refStart, b.refEnd])).toEqual([
+      [1100, 1110],
+    ])
+  })
+
+  test('a threshold under 1 bp', () => {
+    expect(reason({ ...input })).toBeUndefined()
+    const result = foldRuns(input, { threshold: 0 })
+    expect(result.folded ? undefined : result.reason).toBe(
+      'the threshold is 0 bp, and a fold needs 1 bp or more',
+    )
+  })
+
   test('a reference that passes a node twice', () => {
     expect(
       reason({
@@ -321,4 +364,67 @@ describe('a walk with no stretch on the reference', () => {
     expect(result.members['off:2:5000']).toEqual([])
     expect(result.walks.slice(2).map(walk => walk.steps)).toEqual([[], []])
   })
+})
+
+describe('stretches split into single nodes fold the same', () => {
+  test('on 3,000 seeded random graphs, with ends', () => {
+    let compared = 0
+    for (let seed = 1; seed <= 3000; seed++) {
+      const { nodes, tracks, options } = randomGraph(seed, true)
+      const known = new Set(nodes.map(node => node.name))
+      const readable = tracks.every(track =>
+        track.sequence.every(step => known.has(step.replace(/^-/, ''))),
+      )
+      if (readable) {
+        const { input } = stepsToRuns(nodes, tracks, options.reference ?? 0)
+        const start = input.reference.starts[0] ?? 0
+        const ends = randomEnds(seed, input.tracks.length, start, start + 5000)
+        const { reference: _, ...rest } = options
+        const starts: number[] = []
+        const bp: number[] = []
+        const against: number[] = []
+        const offBefore: number[] = []
+        const offsets = [0]
+        const nodeStarts = Array.from(input.reference.starts)
+        const lengths = input.reference.nodes.map(n => n.sequenceLength)
+        input.tracks.forEach((_track, t) => {
+          for (let k = input.offsets[t]!; k < input.offsets[t + 1]!; k++) {
+            const from = nodeStarts.indexOf(input.stretches.starts[k]!)
+            let covered = 0
+            const nodesIn: number[] = []
+            for (let i = from; covered < input.stretches.bp[k]!; i++) {
+              nodesIn.push(i)
+              covered += lengths[i]!
+            }
+            const reversed = input.stretches.against[k] !== 0
+            const walked = reversed ? nodesIn.reverse() : nodesIn
+            walked.forEach((i, j) => {
+              starts.push(nodeStarts[i]!)
+              bp.push(lengths[i]!)
+              against.push(Number(reversed))
+              offBefore.push(j === 0 ? input.stretches.offBefore[k]! : 0)
+            })
+          }
+          offsets.push(starts.length)
+        })
+        const split: RunsInput = {
+          ...input,
+          offsets,
+          stretches: { starts, bp, against, offBefore },
+        }
+        try {
+          expect(
+            firstDifference(
+              foldRuns({ ...split, ends }, rest),
+              foldRuns({ ...input, ends }, rest),
+            ),
+          ).toBe('')
+        } catch (error) {
+          throw new Error(`seed ${seed}: ${String(error)}`, { cause: error })
+        }
+        compared += 1
+      }
+    }
+    expect(compared).toBeGreaterThan(2500)
+  }, 60_000)
 })
