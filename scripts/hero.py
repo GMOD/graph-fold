@@ -1,6 +1,6 @@
 import math, random, sys
 random.seed(7)
-W, H = 960, 570
+W, H = 1200, 470
 X0, X1 = 150, 910
 L = 20000
 def gx(p): return X0 + p / L * (X1 - X0)
@@ -82,7 +82,10 @@ def panel(y0, before):
 
 out.append(f'<rect width="{W}" height="{H}" rx="12" fill="{CARD}"/>')
 t(40, 46, 'graph-fold hides the tiny differences between genomes and keeps the big ones', 21, w='600')
-t(40, 70, 'Each colored line is one person’s DNA, read left to right. The gray line is the reference genome they are all compared to.', 13.5, MUTED)
+t(40, 70, 'Each colored line is one person’s DNA, read left to right along the genome. The gray line is the reference genome they are all compared to.', 13.5, MUTED)
+t(40, 262, '▼ fold', 15, '#9a6700', w='600')
+t(40, 280, 'by the rule', 12.5, MUTED)
+t(40, 295, 'on the right', 12.5, MUTED)
 
 y1 = 140
 t(40, y1 + 10, 'Before', 17, w='600')
@@ -92,37 +95,35 @@ t(40, y1 + 59, 'is a branch', 12.5, MUTED)
 panel(y1, True)
 t(X1, y1 + 92, 'a real 21 kb stretch: 1,655 pieces, drawn 86,000 px wide', 12.5, MUTED, anchor='end')
 
-ys = 296
-t(40, ys + 4, 'The rule', 17, w='600')
-t(40, ys + 23, 'sort by size', 12.5, MUTED)
-def sx(bp): return X0 + math.log10(bp) / 5 * (X1 - X0)
-thr = sx(1000)
-out.append(f'<rect x="{X0}" y="{ys-28}" width="{thr-X0:.1f}" height="62" rx="6" fill="#f3f4f6"/>')
-out.append(f'<rect x="{thr:.1f}" y="{ys-28}" width="{X1-thr:.1f}" height="62" rx="6" fill="#fff4e5"/>')
-out.append(f'<line x1="{X0}" y1="{ys+18}" x2="{X1}" y2="{ys+18}" stroke="{BOXS}" stroke-width="1.5"/>')
-for bp, lab in [(1, '1 letter'), (10, '10'), (100, '100'), (10000, '10,000'), (100000, '100,000 letters')]:
-    x = sx(bp)
-    out.append(f'<line x1="{x:.1f}" y1="{ys+14}" x2="{x:.1f}" y2="{ys+22}" stroke="{BOXS}" stroke-width="1.5"/>')
-    t(x, ys + 50, lab, 11.5, MUTED, anchor='start' if bp == 1 else 'end' if bp == 100000 else 'middle')
+RX = 960
+out.append(f'<rect x="{RX - 14}" y="96" width="{W - RX - 16}" height="{H - 120}" rx="10" fill="#f6f8fa" stroke="{BOXS}" stroke-width="1"/>')
+t(RX + 4, 126, 'The rule', 17, w='600')
+t(RX + 4, 145, 'every difference, sorted', 12.5, MUTED)
+t(RX + 4, 160, 'by size in letters', 12.5, MUTED)
+YT, YB, AX = 190, H - 50, RX + 54
+def sy(bp): return YB - math.log10(bp) / 5 * (YB - YT)
+thr = sy(1000)
+out.append(f'<rect x="{AX - 4}" y="{YT - 8}" width="{W - 30 - AX + 4}" height="{thr - YT + 8:.1f}" rx="6" fill="#fff4e5"/>')
+out.append(f'<line x1="{AX}" y1="{YT}" x2="{AX}" y2="{YB}" stroke="{BOXS}" stroke-width="1.5"/>')
+for bp, lab in [(1, '1'), (10, '10'), (100, '100'), (10000, '10,000'), (100000, '100,000')]:
+    y = sy(bp)
+    out.append(f'<line x1="{AX - 4}" y1="{y:.1f}" x2="{AX + 4}" y2="{y:.1f}" stroke="{BOXS}" stroke-width="1.5"/>')
+    t(AX - 8, y + 4, lab, 11.5, MUTED, anchor='end')
 stacks = {}
-snp = 0
 for p, tr, s in sorted(diffs, key=lambda d: d[2]):
-    if s == 1:
-        cx, cy = X0 + 5 + (snp // 5) * 8, ys + 10 - (snp % 5) * 8
-        snp += 1
-    else:
-        k = round(sx(s) / 8)
-        n = stacks.get(k, 0); stacks[k] = n + 1
-        cx, cy = k * 8, ys + 10 - n * 8
-    out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.3" fill="{col[tr]}"/>')
-for bp, tr in [(6000, 'A'), (3000, 'B'), (2000, 'C')]:
-    out.append(f'<circle cx="{sx(bp):.1f}" cy="{ys+10}" r="5.5" fill="{col[tr]}"/>')
-out.append(f'<line x1="{thr:.1f}" y1="{ys-34}" x2="{thr:.1f}" y2="{ys+40}" stroke="{INK}" stroke-width="2" stroke-dasharray="5 4"/>')
-t(thr, ys + 50, '1,000 letters (you pick)', 11.5, INK, w='600', anchor='middle')
-t(thr - 12, ys - 12, 'smaller: merged into the reference', 13, MUTED, anchor='end')
-t(thr + 12, ys - 12, 'bigger: kept', 13, '#9a6700', w='600')
+    k = round(sy(s) / 8)
+    n = stacks.get(k, 0); stacks[k] = n + 1
+    out.append(f'<circle cx="{AX + 10 + (n % 11) * 8:.1f}" cy="{k * 8 - (n // 11) * 8:.1f}" r="3.3" fill="{col[tr]}"/>')
+for i, (bp, tr) in enumerate([(6000, 'A'), (3000, 'B'), (2000, 'C')]):
+    out.append(f'<circle cx="{AX + 14 + i * 14}" cy="{sy(bp):.1f}" r="5.5" fill="{col[tr]}"/>')
+out.append(f'<line x1="{AX - 10}" y1="{thr:.1f}" x2="{W - 30}" y2="{thr:.1f}" stroke="{INK}" stroke-width="2" stroke-dasharray="5 4"/>')
+t(AX - 8, thr + 4, '1,000', 11.5, INK, w='600', anchor='end')
+t(W - 34, thr + 16, 'you pick this line', 11.5, INK, w='600', anchor='end')
+t(AX + 10, sy(30000) + 4, 'bigger: kept', 13, '#9a6700', w='600')
+t(AX + 44, sy(40), 'smaller: merged', 13, MUTED)
+t(AX + 44, sy(40) + 16, 'into the reference', 13, MUTED)
 
-y2 = 440
+y2 = 320
 t(40, y2 + 10, 'After', 17, w='600')
 t(40, y2 + 29, 'only the big', 12.5, MUTED)
 t(40, y2 + 44, 'changes remain', 12.5, MUTED)

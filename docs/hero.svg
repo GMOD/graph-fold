@@ -1,8 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="570" viewBox="0 0 960 570" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
 <title>graph-fold: before and after</title>
-<rect width="960" height="570" rx="12" fill="#ffffff"/>
+<rect width="1200" height="470" rx="12" fill="#ffffff"/>
 <text x="40.0" y="46.0" font-size="21" fill="#1f2328" font-weight="600" text-anchor="start" >graph-fold hides the tiny differences between genomes and keeps the big ones</text>
-<text x="40.0" y="70.0" font-size="13.5" fill="#59636e" font-weight="400" text-anchor="start" >Each colored line is one person’s DNA, read left to right. The gray line is the reference genome they are all compared to.</text>
+<text x="40.0" y="70.0" font-size="13.5" fill="#59636e" font-weight="400" text-anchor="start" >Each colored line is one person’s DNA, read left to right along the genome. The gray line is the reference genome they are all compared to.</text>
+<text x="40.0" y="262.0" font-size="15" fill="#9a6700" font-weight="600" text-anchor="start" >▼ fold</text>
+<text x="40.0" y="280.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >by the rule</text>
+<text x="40.0" y="295.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >on the right</text>
 <text x="40.0" y="150.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >Before</text>
 <text x="40.0" y="169.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >every difference,</text>
 <text x="40.0" y="184.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >even one letter,</text>
@@ -51,78 +54,81 @@
 <path d="M791.5,155 L781.5,160 L791.5,165 Z" fill="#bf8700"/>
 <path d="M144,170 L179.9,170 Q184.9,180.8 189.9,170 L222.1,170 Q227.1,180.8 232.1,170 L264.0,170 C294.0,216 462.0,216 492.0,170 L509.0,170 Q514.0,180.8 519.0,170 L545.6,170 Q550.6,180.8 555.6,170 L700.0,170 Q705.0,180.8 710.0,170 L817.1,170 Q822.1,180.8 827.1,170 L858.1,170 Q863.1,180.8 868.1,170 L878.8,170 Q883.8,180.8 888.8,170 L916,170" fill="none" stroke="#cf222e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
 <text x="910.0" y="232.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="end" >a real 21 kb stretch: 1,655 pieces, drawn 86,000 px wide</text>
-<text x="40.0" y="300.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >The rule</text>
-<text x="40.0" y="319.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >sort by size</text>
-<rect x="150" y="268" width="456.0" height="62" rx="6" fill="#f3f4f6"/>
-<rect x="606.0" y="268" width="304.0" height="62" rx="6" fill="#fff4e5"/>
-<line x1="150" y1="314" x2="910" y2="314" stroke="#c3cad3" stroke-width="1.5"/>
-<line x1="150.0" y1="310" x2="150.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
-<text x="150.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="start" >1 letter</text>
-<line x1="302.0" y1="310" x2="302.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
-<text x="302.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="middle" >10</text>
-<line x1="454.0" y1="310" x2="454.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
-<text x="454.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="middle" >100</text>
-<line x1="758.0" y1="310" x2="758.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
-<text x="758.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="middle" >10,000</text>
-<line x1="910.0" y1="310" x2="910.0" y2="318" stroke="#c3cad3" stroke-width="1.5"/>
-<text x="910.0" y="346.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="end" >100,000 letters</text>
-<circle cx="155.0" cy="306.0" r="3.3" fill="#bf8700"/>
-<circle cx="155.0" cy="298.0" r="3.3" fill="#bf8700"/>
-<circle cx="155.0" cy="290.0" r="3.3" fill="#0969da"/>
-<circle cx="155.0" cy="282.0" r="3.3" fill="#cf222e"/>
-<circle cx="155.0" cy="274.0" r="3.3" fill="#0969da"/>
-<circle cx="163.0" cy="306.0" r="3.3" fill="#cf222e"/>
-<circle cx="163.0" cy="298.0" r="3.3" fill="#0969da"/>
-<circle cx="163.0" cy="290.0" r="3.3" fill="#0969da"/>
-<circle cx="163.0" cy="282.0" r="3.3" fill="#cf222e"/>
-<circle cx="163.0" cy="274.0" r="3.3" fill="#bf8700"/>
-<circle cx="171.0" cy="306.0" r="3.3" fill="#0969da"/>
-<circle cx="224.0" cy="306.0" r="3.3" fill="#0969da"/>
-<circle cx="256.0" cy="306.0" r="3.3" fill="#bf8700"/>
-<circle cx="296.0" cy="306.0" r="3.3" fill="#bf8700"/>
-<circle cx="336.0" cy="306.0" r="3.3" fill="#0969da"/>
-<circle cx="344.0" cy="306.0" r="3.3" fill="#0969da"/>
-<circle cx="384.0" cy="306.0" r="3.3" fill="#cf222e"/>
-<circle cx="384.0" cy="298.0" r="3.3" fill="#bf8700"/>
-<circle cx="408.0" cy="306.0" r="3.3" fill="#bf8700"/>
-<circle cx="456.0" cy="306.0" r="3.3" fill="#bf8700"/>
-<circle cx="464.0" cy="306.0" r="3.3" fill="#bf8700"/>
-<circle cx="496.0" cy="306.0" r="3.3" fill="#0969da"/>
-<circle cx="496.0" cy="298.0" r="3.3" fill="#bf8700"/>
-<circle cx="512.0" cy="306.0" r="3.3" fill="#cf222e"/>
-<circle cx="528.0" cy="306.0" r="3.3" fill="#bf8700"/>
-<circle cx="536.0" cy="306.0" r="3.3" fill="#0969da"/>
-<circle cx="552.0" cy="306.0" r="3.3" fill="#cf222e"/>
-<circle cx="560.0" cy="306.0" r="3.3" fill="#cf222e"/>
-<circle cx="576.0" cy="306.0" r="3.3" fill="#cf222e"/>
-<circle cx="724.3" cy="306" r="5.5" fill="#cf222e"/>
-<circle cx="678.5" cy="306" r="5.5" fill="#0969da"/>
-<circle cx="651.8" cy="306" r="5.5" fill="#bf8700"/>
-<line x1="606.0" y1="262" x2="606.0" y2="336" stroke="#1f2328" stroke-width="2" stroke-dasharray="5 4"/>
-<text x="606.0" y="346.0" font-size="11.5" fill="#1f2328" font-weight="600" text-anchor="middle" >1,000 letters (you pick)</text>
-<text x="594.0" y="284.0" font-size="13" fill="#59636e" font-weight="400" text-anchor="end" >smaller: merged into the reference</text>
-<text x="618.0" y="284.0" font-size="13" fill="#9a6700" font-weight="600" text-anchor="start" >bigger: kept</text>
-<text x="40.0" y="450.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >After</text>
-<text x="40.0" y="469.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >only the big</text>
-<text x="40.0" y="484.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >changes remain</text>
-<rect x="151.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
-<rect x="265.2" y="432" width="225.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
-<rect x="493.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
-<rect x="607.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
-<rect x="721.2" y="432" width="73.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
-<rect x="797.2" y="432" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
-<rect x="612.0" y="382" width="76" height="20" rx="3" fill="#ddeaff" stroke="#0969da" stroke-width="1"/>
-<path d="M144,450 L916,450" fill="none" stroke="#8c959f" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M144,440 L592.0,440 C604.0,440 600.0,392 618.0,392 L682.0,392 C698.0,392 676.0,440 692.0,440 L916,440" fill="none" stroke="#0969da" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M144,460 L916,460" fill="none" stroke="#bf8700" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-<line x1="723.0" y1="460" x2="793.0" y2="460" stroke="#eef1f4" stroke-width="4"/>
-<path d="M734.5,455 L724.5,460 L734.5,465 Z" fill="#bf8700"/>
-<path d="M753.5,455 L743.5,460 L753.5,465 Z" fill="#bf8700"/>
-<path d="M772.5,455 L762.5,460 L772.5,465 Z" fill="#bf8700"/>
-<path d="M791.5,455 L781.5,460 L791.5,465 Z" fill="#bf8700"/>
-<path d="M144,470 L264.0,470 C294.0,516 462.0,516 492.0,470 L916,470" fill="none" stroke="#cf222e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="694.0" y="396.0" font-size="12.5" fill="#0969da" font-weight="600" text-anchor="start" >insertion: 3,000 extra letters</text>
-<text x="378.0" y="522.0" font-size="12.5" fill="#cf222e" font-weight="600" text-anchor="middle" >deletion: skips 6,000 letters</text>
-<text x="758.0" y="500.0" font-size="12.5" fill="#9a6700" font-weight="600" text-anchor="middle" >inversion: read backwards</text>
-<text x="910.0" y="540.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="end" >the same real stretch: 3 pieces, 504 px wide</text>
+<rect x="946" y="96" width="224" height="350" rx="10" fill="#f6f8fa" stroke="#c3cad3" stroke-width="1"/>
+<text x="964.0" y="126.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >The rule</text>
+<text x="964.0" y="145.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >every difference, sorted</text>
+<text x="964.0" y="160.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >by size in letters</text>
+<rect x="1010" y="182" width="160" height="100.0" rx="6" fill="#fff4e5"/>
+<line x1="1014" y1="190" x2="1014" y2="420" stroke="#c3cad3" stroke-width="1.5"/>
+<line x1="1010" y1="420.0" x2="1018" y2="420.0" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="1006.0" y="424.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="end" >1</text>
+<line x1="1010" y1="374.0" x2="1018" y2="374.0" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="1006.0" y="378.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="end" >10</text>
+<line x1="1010" y1="328.0" x2="1018" y2="328.0" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="1006.0" y="332.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="end" >100</text>
+<line x1="1010" y1="236.0" x2="1018" y2="236.0" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="1006.0" y="240.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="end" >10,000</text>
+<line x1="1010" y1="190.0" x2="1018" y2="190.0" stroke="#c3cad3" stroke-width="1.5"/>
+<text x="1006.0" y="194.0" font-size="11.5" fill="#59636e" font-weight="400" text-anchor="end" >100,000</text>
+<circle cx="1024.0" cy="416.0" r="3.3" fill="#bf8700"/>
+<circle cx="1032.0" cy="416.0" r="3.3" fill="#bf8700"/>
+<circle cx="1040.0" cy="416.0" r="3.3" fill="#0969da"/>
+<circle cx="1048.0" cy="416.0" r="3.3" fill="#cf222e"/>
+<circle cx="1056.0" cy="416.0" r="3.3" fill="#0969da"/>
+<circle cx="1064.0" cy="416.0" r="3.3" fill="#cf222e"/>
+<circle cx="1072.0" cy="416.0" r="3.3" fill="#0969da"/>
+<circle cx="1080.0" cy="416.0" r="3.3" fill="#0969da"/>
+<circle cx="1088.0" cy="416.0" r="3.3" fill="#cf222e"/>
+<circle cx="1096.0" cy="416.0" r="3.3" fill="#bf8700"/>
+<circle cx="1104.0" cy="416.0" r="3.3" fill="#0969da"/>
+<circle cx="1024.0" cy="400.0" r="3.3" fill="#0969da"/>
+<circle cx="1024.0" cy="384.0" r="3.3" fill="#bf8700"/>
+<circle cx="1024.0" cy="376.0" r="3.3" fill="#bf8700"/>
+<circle cx="1024.0" cy="360.0" r="3.3" fill="#0969da"/>
+<circle cx="1032.0" cy="360.0" r="3.3" fill="#0969da"/>
+<circle cx="1024.0" cy="352.0" r="3.3" fill="#cf222e"/>
+<circle cx="1032.0" cy="352.0" r="3.3" fill="#bf8700"/>
+<circle cx="1024.0" cy="344.0" r="3.3" fill="#bf8700"/>
+<circle cx="1024.0" cy="328.0" r="3.3" fill="#bf8700"/>
+<circle cx="1032.0" cy="328.0" r="3.3" fill="#bf8700"/>
+<circle cx="1024.0" cy="320.0" r="3.3" fill="#0969da"/>
+<circle cx="1024.0" cy="312.0" r="3.3" fill="#bf8700"/>
+<circle cx="1032.0" cy="312.0" r="3.3" fill="#cf222e"/>
+<circle cx="1024.0" cy="304.0" r="3.3" fill="#bf8700"/>
+<circle cx="1032.0" cy="304.0" r="3.3" fill="#0969da"/>
+<circle cx="1024.0" cy="296.0" r="3.3" fill="#cf222e"/>
+<circle cx="1032.0" cy="296.0" r="3.3" fill="#cf222e"/>
+<circle cx="1024.0" cy="288.0" r="3.3" fill="#cf222e"/>
+<circle cx="1028" cy="246.2" r="5.5" fill="#cf222e"/>
+<circle cx="1042" cy="260.1" r="5.5" fill="#0969da"/>
+<circle cx="1056" cy="268.2" r="5.5" fill="#bf8700"/>
+<line x1="1004" y1="282.0" x2="1170" y2="282.0" stroke="#1f2328" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="1006.0" y="286.0" font-size="11.5" fill="#1f2328" font-weight="600" text-anchor="end" >1,000</text>
+<text x="1166.0" y="298.0" font-size="11.5" fill="#1f2328" font-weight="600" text-anchor="end" >you pick this line</text>
+<text x="1024.0" y="218.1" font-size="13" fill="#9a6700" font-weight="600" text-anchor="start" >bigger: kept</text>
+<text x="1058.0" y="346.3" font-size="13" fill="#59636e" font-weight="400" text-anchor="start" >smaller: merged</text>
+<text x="1058.0" y="362.3" font-size="13" fill="#59636e" font-weight="400" text-anchor="start" >into the reference</text>
+<text x="40.0" y="330.0" font-size="17" fill="#1f2328" font-weight="600" text-anchor="start" >After</text>
+<text x="40.0" y="349.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >only the big</text>
+<text x="40.0" y="364.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="start" >changes remain</text>
+<rect x="151.2" y="312" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="265.2" y="312" width="225.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="493.2" y="312" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="607.2" y="312" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="721.2" y="312" width="73.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="797.2" y="312" width="111.6" height="46" rx="3" fill="#eef1f4" stroke="#c3cad3" stroke-width="1"/>
+<rect x="612.0" y="262" width="76" height="20" rx="3" fill="#ddeaff" stroke="#0969da" stroke-width="1"/>
+<path d="M144,330 L916,330" fill="none" stroke="#8c959f" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144,320 L592.0,320 C604.0,320 600.0,272 618.0,272 L682.0,272 C698.0,272 676.0,320 692.0,320 L916,320" fill="none" stroke="#0969da" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144,340 L916,340" fill="none" stroke="#bf8700" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="723.0" y1="340" x2="793.0" y2="340" stroke="#eef1f4" stroke-width="4"/>
+<path d="M734.5,335 L724.5,340 L734.5,345 Z" fill="#bf8700"/>
+<path d="M753.5,335 L743.5,340 L753.5,345 Z" fill="#bf8700"/>
+<path d="M772.5,335 L762.5,340 L772.5,345 Z" fill="#bf8700"/>
+<path d="M791.5,335 L781.5,340 L791.5,345 Z" fill="#bf8700"/>
+<path d="M144,350 L264.0,350 C294.0,396 462.0,396 492.0,350 L916,350" fill="none" stroke="#cf222e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="694.0" y="276.0" font-size="12.5" fill="#0969da" font-weight="600" text-anchor="start" >insertion: 3,000 extra letters</text>
+<text x="378.0" y="402.0" font-size="12.5" fill="#cf222e" font-weight="600" text-anchor="middle" >deletion: skips 6,000 letters</text>
+<text x="758.0" y="380.0" font-size="12.5" fill="#9a6700" font-weight="600" text-anchor="middle" >inversion: read backwards</text>
+<text x="910.0" y="420.0" font-size="12.5" fill="#59636e" font-weight="400" text-anchor="end" >the same real stretch: 3 pieces, 504 px wide</text>
 </svg>
