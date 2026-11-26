@@ -57,8 +57,7 @@ interface OpenEnd {
   own: number
   beyond: number
   replaced: number
-  site?: Site
-  description?: string
+  site: Site
   emitted: boolean
 }
 
@@ -322,9 +321,7 @@ export function foldWindow<T extends WalkFields>(
     const pos = table?.pos[index] ?? Number.NaN
     const outside = pos <= refPos(0) || pos >= refPos(refNames.length)
     const kind = table === undefined ? undefined : endKind(table, index)
-    const departs =
-      (kind === 'beyond' || kind === 'elsewhere') &&
-      table?.missingBp[index] === 0
+    const departs = kind === 'beyond' && table?.missingBp[index] === 0
     const outsideLeft = starts !== run.reversed
     const boundary = outsideLeft ? run.start : run.end
     const at = refPos(boundary)
@@ -332,11 +329,6 @@ export function foldWindow<T extends WalkFields>(
     const replaced = Math.abs(at - pos)
     const farReversed = (table?.reversed[index] !== 0) !== run.reversed
     const inOrder = outsideLeft ? pos <= at : pos >= at
-    const description = farReversed
-      ? 'joins the reference outside the window, reversed'
-      : inOrder
-        ? undefined
-        : 'joins the reference outside the window, out of order'
     const inserted = own >= threshold ? own : 0
     const end: OpenEnd = {
       boundary,
@@ -345,11 +337,9 @@ export function foldWindow<T extends WalkFields>(
       beyond: pos,
       replaced,
       emitted: own >= threshold || replaced >= threshold,
-      ...(description === undefined
-        ? { site: { left: boundary, right: boundary, inserted, beyond: pos } }
-        : { description }),
+      site: { left: boundary, right: boundary, inserted, beyond: pos },
     }
-    return departs && outside ? end : undefined
+    return departs && outside && inOrder && !farReversed ? end : undefined
   }
 
   const endBp = (anchor: Anchor) => anchor.bp + refBp(anchor.from, anchor.to)
@@ -387,6 +377,7 @@ export function foldWindow<T extends WalkFields>(
       ...walk,
       runs,
       told: kinds.map(kind => kind === undefined || kind === 'nowhere'),
+      read: kinds.map(kind => kind !== undefined),
       nowhere: kinds.map(kind => kind === 'nowhere'),
       opens: [
         firstRun === undefined
@@ -760,21 +751,11 @@ export function foldWindow<T extends WalkFields>(
     }
 
     const reportOpen = (open: OpenEnd) => {
-      const drawnSite =
-        open.site === undefined
-          ? undefined
-          : (leaderOf.get(siteKey(open.site)) ?? open.site)
-      const inserted =
-        drawnSite?.inserted ?? (open.own >= threshold ? open.own : 0)
-      const deletedBp =
-        drawnSite !== undefined && open.replaced >= threshold
-          ? open.replaced
-          : 0
+      const drawnSite = leaderOf.get(siteKey(open.site)) ?? open.site
+      const inserted = drawnSite.inserted
+      const deletedBp = open.replaced >= threshold ? open.replaced : 0
       const at = refPos(open.boundary)
-      const key =
-        drawnSite === undefined
-          ? `open:${open.boundary}:${open.beyond}:${inserted}:${open.description}`
-          : `open:${siteKey(drawnSite)}`
+      const key = `open:${siteKey(drawnSite)}`
       const inside = refNameAt(
         open.outsideLeft ? open.boundary : open.boundary - 1,
       )
@@ -789,7 +770,7 @@ export function foldWindow<T extends WalkFields>(
         ? { refStart: refPos(0), refEnd: at }
         : { refStart: at, refEnd: refPos(refNames.length) }
       const kind =
-        open.description !== undefined || (inserted > 0 && deletedBp > 0)
+        inserted > 0 && deletedBp > 0
           ? 'other'
           : inserted > 0
             ? 'insertion'
@@ -797,8 +778,7 @@ export function foldWindow<T extends WalkFields>(
       if (open.emitted) {
         carry(key, walk, () => ({
           kind,
-          description:
-            open.description ?? (kind === 'other' ? 'replacement' : kind),
+          description: kind === 'other' ? 'replacement' : kind,
           length: Math.max(inserted, deletedBp),
           insertedBp: inserted,
           deletedBp,
@@ -810,7 +790,7 @@ export function foldWindow<T extends WalkFields>(
           open: true,
           beyond: open.beyond,
         }))
-        if (open.site !== undefined) {
+        {
           const tally = tallies.get(key) ?? {
             walks: new Set(),
             alleles: new Map(),
@@ -912,10 +892,10 @@ export function foldWindow<T extends WalkFields>(
       const leadOpen = before === undefined ? walk.opens[0] : undefined
       const leadNode = leadOpen === undefined ? undefined : reportOpen(leadOpen)
       if (before === undefined) {
-        if (leadOpen === undefined) {
-          if (walk.told[0] === true) {
-            walkEnd(entered, !run.reversed, true)
-          }
+        if (leadOpen === undefined && walk.told[0] === true) {
+          walkEnd(entered, !run.reversed, true)
+        }
+        if (walk.read[0] !== true) {
           stretch(
             `lead:${refNameAt(firstRef(first))}`,
             'sequence off the reference before the walk first meets it',
@@ -925,7 +905,7 @@ export function foldWindow<T extends WalkFields>(
             entered,
             undefined,
           )
-        } else if (leadNode !== undefined) {
+        } else if (leadOpen !== undefined && leadNode !== undefined) {
           openVisit(leadOpen, leadNode, 0, first.at, first.bp)
         }
       } else {
@@ -1030,8 +1010,17 @@ export function foldWindow<T extends WalkFields>(
       for (const visit of runVisits) {
         visits.push(visit)
       }
-      if (leadOpen !== undefined && leadNode === undefined && first.at > 0) {
-        hide(runVisits[0]!, 0, first.at, first.bp)
+      if (
+        before === undefined &&
+        walk.read[0] === true &&
+        leadNode === undefined &&
+        first.at > 0
+      ) {
+        if (leadOpen === undefined) {
+          absorb(runVisits[0]!, 0, first.at, first.bp)
+        } else {
+          hide(runVisits[0]!, 0, first.at, first.bp)
+        }
       }
 
       const skips = new Set(
@@ -1089,7 +1078,7 @@ export function foldWindow<T extends WalkFields>(
         const tailOpen = walk.opens[1]
         const tailNode =
           tailOpen === undefined ? undefined : reportOpen(tailOpen)
-        if (tailOpen === undefined) {
+        if (tailOpen === undefined && walk.read[1] !== true) {
           stretch(
             `tail:${refNameAt(lastRef(last))}`,
             'sequence off the reference after the walk last leaves it',
@@ -1102,7 +1091,7 @@ export function foldWindow<T extends WalkFields>(
           if (walk.told[1] === true) {
             walkEnd(left, run.reversed, false)
           }
-        } else if (tailNode !== undefined) {
+        } else if (tailOpen !== undefined && tailNode !== undefined) {
           openVisit(
             tailOpen,
             tailNode,
@@ -1110,8 +1099,18 @@ export function foldWindow<T extends WalkFields>(
             walk.steps,
             walk.bp - endBp(last),
           )
-        } else if (walk.steps > endStep(last)) {
-          hide(visits.at(-1)!, endStep(last), walk.steps, walk.bp - endBp(last))
+        } else {
+          if (tailOpen === undefined && walk.told[1] === true) {
+            walkEnd(left, run.reversed, false)
+          }
+          if (walk.steps > endStep(last)) {
+            const tailBp = walk.bp - endBp(last)
+            if (tailOpen === undefined) {
+              absorb(visits.at(-1)!, endStep(last), walk.steps, tailBp)
+            } else {
+              hide(visits.at(-1)!, endStep(last), walk.steps, tailBp)
+            }
+          }
         }
       }
     })

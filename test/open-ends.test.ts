@@ -176,21 +176,19 @@ describe('a walk that leaves the reference outside the window', () => {
     expect(sequences).toEqual(['a~b c~d', '-a~b', '-c~d open:c:left:600:9000'])
   })
 
-  test('a far step against the walk, or on the wrong side, says so', () => {
-    const { labels } = foldEnds([
+  test('a far step against the walk, or on the wrong side, draws and says nothing', () => {
+    const { labels, sequences } = foldEnds([
       {
         sequence: 'a b',
-        after: { kind: 'elsewhere', pos: 15_000, reversed: true, ownBp: 0 },
+        after: { kind: 'beyond', pos: 15_000, reversed: true, ownBp: 0 },
       },
       {
         sequence: 'c d',
         before: { kind: 'elsewhere', pos: 15_000, ownBp: 800 },
       },
     ])
-    expect(labels).toEqual([
-      'joins the reference outside the window, reversed, 1 of 3, continues past the window',
-      'joins the reference outside the window, out of order, 800 bp of its own, 1 of 3, continues past the window',
-    ])
+    expect(labels).toEqual([])
+    expect(sequences).toEqual(['a~b c~d', 'a~b', 'c~d'])
   })
 
   test('alleles near in size cluster when clustering is on, and not with an allele inside the window', () => {
@@ -253,14 +251,54 @@ describe('ends the fold does not draw', () => {
     }
   })
 
-  test('says nothing on the edge, and keeps what the walk has of its own there', () => {
+  test('an end of any kind but beyond draws no stub of the bp past it and says nothing', () => {
+    for (const kind of ['edge', 'nowhere', 'elsewhere'] as const) {
+      const far = kind === 'elsewhere' ? 15_000 : Number.NaN
+      const { result, labels, sequences } = foldEnds([
+        { sequence: 'x c d', before: { kind, pos: far, ownBp: 500 } },
+        { sequence: 'a b x', after: { kind, pos: far, ownBp: 500 } },
+      ])
+      expect(sequences).toEqual(['a~b c~d', 'c~d', 'a~b'])
+      expect(labels).toEqual(
+        kind === 'nowhere'
+          ? [
+              'walk starts inside the window 2 kb, 1 of 3',
+              'walk ends inside the window 2 kb, 1 of 3',
+            ]
+          : [],
+      )
+      expect(
+        result.walks
+          .slice(1)
+          .map(walk => walk.steps.map(step => step.insertedBp)),
+      ).toEqual([[500], [500]])
+    }
+  })
+
+  test('a departure with bp the file lacks draws no stub either', () => {
     const { labels, sequences } = foldEnds([
-      { sequence: 'y c d', before: { kind: 'edge', pos: Number.NaN } },
+      {
+        sequence: 'x c d',
+        before: { kind: 'beyond', pos: 8000, ownBp: 600, missingBp: 100 },
+      },
     ])
-    expect(labels).toEqual([
-      'sequence off the reference before the walk first meets it 5 bp, 1 of 2',
+    expect(labels).toEqual([])
+    expect(sequences).toEqual(['a~b c~d', 'c~d'])
+  })
+
+  test('the two ends of one departure back on the reference 902 bp on draw no stub', () => {
+    const { labels, sequences } = foldEnds([
+      {
+        sequence: 'a b x',
+        after: { kind: 'elsewhere', pos: 12_902, ownBp: 1000 },
+      },
+      {
+        sequence: 'x c d',
+        before: { kind: 'elsewhere', pos: 12_000, ownBp: 1000 },
+      },
     ])
-    expect(sequences).toEqual(['a~b c~d', 'lead:c:5 c~d'])
+    expect(labels).toEqual([])
+    expect(sequences).toEqual(['a~b c~d', 'a~b', 'c~d'])
   })
 
   test('a departure under the threshold draws nothing, and its few bp in the window fold into the reference', () => {
@@ -308,20 +346,15 @@ describe('what the fold reads past an end keeps its counts true', () => {
     expect(labels).toEqual(['inversion 2 kb, 1 of 2'])
   })
 
-  test('one junction read from a contig written either way is one branch', () => {
+  test('one departure read from a contig written either way is one branch', () => {
     const { labels } = foldEnds([
-      {
-        sequence: 'a b',
-        after: { kind: 'elsewhere', pos: 15_000, reversed: true, ownBp: 0 },
-      },
+      { sequence: 'a b', after: { kind: 'beyond', pos: 15_000, ownBp: 0 } },
       {
         sequence: '-b -a',
-        before: { kind: 'elsewhere', pos: 15_000, reversed: false, ownBp: 0 },
+        before: { kind: 'beyond', pos: 15_000, reversed: true, ownBp: 0 },
       },
     ])
-    expect(labels).toEqual([
-      'joins the reference outside the window, reversed, 2 of 3, continues past the window',
-    ])
+    expect(labels).toEqual(['deletion 3 kb, 2 of 3, continues past the window'])
   })
 
   test('kinds may be the numbers of END_KINDS', () => {
@@ -497,7 +530,6 @@ describe("an open branch is the whole graph's branch, cut by the window", () => 
               : shape(b, b.refStart, b.beyond!),
           )
           .sort(),
-        `seed ${seed}`,
       ).toEqual(crossing.map(b => shape(b, b.refStart, b.refEnd)).sort())
       matched += open.length
     }

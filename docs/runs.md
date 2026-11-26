@@ -92,8 +92,9 @@ const ends = {
   last reference step among them, and `missingBp` how many of them the file
   lacks
 
-Where a departure's far breakpoint lies past the window and none of its bp are
-missing:
+Only a `beyond` departure is drawn, where its far breakpoint lies past the
+window on the side the piece comes from or goes to, its far step runs the same
+way as the piece, and none of its bp are missing:
 
 - The fold makes a branch of it by the rule's sizes, from its whole own bp and
   the reference between its two breakpoints, with `open: true` and `beyond`, the
@@ -107,22 +108,22 @@ missing:
   is the departure's own bp that lie outside the piece. Under the threshold,
   nothing is drawn, and the piece's few own bp fold into the reference node it
   meets
-- A far step that runs against the walk's piece at that end is
-  `joins the reference outside the window, reversed`, and a far breakpoint on
-  the side the piece is heading, not coming from, is
-  `joins the reference outside the window, out of order`, kind `other`, with the
-  departure's own bp. The words do not depend on which way the contig is
-  written, so both directions of one junction are one branch
+- The branch does not depend on which way the contig is written, so both
+  directions of one departure are one branch
 - With `cluster`, open branches of one breakpoint inside the window and one
   beyond it cluster by own bp as other alleles do. An open branch never joins
   one inside the window
 
-A walk that has no further step on the reference past an end inside the window,
-`nowhere`, is listed as before, `walk starts inside the window` or
+Every other end draws nothing: an `edge`, an `elsewhere` departure, a `beyond`
+departure that lacks bp or runs the other way, and `nowhere`. The bp the piece
+has of its own past its first or last reference step fold into the reference
+node it meets, with no `lead:` or `tail:` node and no branch, since a reader
+that cuts a window keeps only so much past a piece's ends and that length is not
+a fact of the haplotype. A `nowhere` end, where the walk has no further step on
+the reference, is still listed as `walk starts inside the window` or
 `walk ends inside the window`, and an inversion at that end is not marked
-`open`. An `edge`, and a departure the fold does not draw, one that lacks bp or
-whose far breakpoint lies inside the window, are listed as nothing: the walk is
-neither said to end there nor to continue past the window.
+`open`. The others are listed as nothing: the walk is neither said to end there
+nor to continue past the window.
 
 - Walks that fold to the same steps but differ past their ends, an open branch
   or a walk end one has and another lacks, are separate tracks, so a branch's

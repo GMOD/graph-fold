@@ -10,6 +10,9 @@
   walks. Given `ends`, neither is said to start or end there, and the departure
   draws no branch, so a branch at its site does not count that walk. Without
   `ends`, each is listed as starting or ending inside the window
+- **`walk ends inside the window` is true of the contig.** Given a `nowhere`
+  end, the contig has no further step on the reference there; the haplotype may
+  carry on in another contig
 - **A walk whose departure spans the whole window is not in it.** It has no
   piece there, so it is in no count of the window
 - **An insertion is its site and its length.** Two alleles of one length at one
