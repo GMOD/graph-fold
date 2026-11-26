@@ -138,10 +138,8 @@ function spread(amounts: { bp: number; freq: number }[]) {
 
 function variationOf(
   walks: { insertedBp: number; skippedBp: number; freq: number }[],
-  distinct = walks.length,
 ) {
   const result: TrackVariation = {
-    walks: distinct,
     foldedAwayBp: spread(
       walks.map(w => ({ bp: w.insertedBp + w.skippedBp, freq: w.freq })),
     ),
@@ -987,10 +985,7 @@ function foldWindow<T extends InputTrack>(
       haplotypes,
       sourceTrackID: tracks[first.walk.index]!.sourceTrackID ?? id,
       names,
-      variation: variationOf(
-        [...byHaplotype.values()],
-        new Set(held.map(h => tracks[h.walk.index]!.sequence.join())).size,
-      ),
+      variation: variationOf([...byHaplotype.values()]),
     }
     return track
   })

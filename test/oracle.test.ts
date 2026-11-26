@@ -29,13 +29,25 @@ interface Allowance {
 interface Shape {
   folded: boolean
   members?: Record<string, string[]>
-  tracks: { sequence: string[]; variation?: { walks: number } }[]
+  tracks: { sequence: string[]; variation?: { walks?: number } }[]
 }
 
 const nameOf = (step: string) => step.replace(/^-/, '')
 
 const allowances: Record<string, Allowance> = {
-  "a walk with no step on the reference is one node of its own bp, off:<walk>:<bp>, which the oracle is given in its place; that node holds the walk's nodes and not the stand-in, and a track of no steps counts walks of 0 bp as one distinct walk":
+  "the distinct-walk count is dropped from each track's variation": {
+    results: (found, expected) => [
+      found,
+      {
+        ...expected,
+        tracks: expected.tracks.map(({ variation, ...track }) => {
+          const { walks: _, ...rest } = variation ?? {}
+          return variation === undefined ? track : { ...track, variation: rest }
+        }),
+      },
+    ],
+  },
+  "a walk with no step on the reference is one node of its own bp, off:<walk>:<bp>, which the oracle is given in its place; that node holds the walk's nodes and not the stand-in":
     {
       oracleInput: ({ nodes, tracks, options }) => {
         const lengths = new Map(
@@ -69,17 +81,11 @@ const allowances: Record<string, Allowance> = {
               node.startsWith('off:') ? [] : held,
             ]),
           )
-        const empty = (shape: Shape) => ({
-          ...shape,
-          members: standIn(shape.members),
-          tracks: shape.tracks.map(track =>
-            track.sequence.length === 0 && track.variation !== undefined
-              ? { ...track, variation: { ...track.variation, walks: 1 } }
-              : track,
-          ),
-        })
         return found.folded
-          ? [empty(found), empty(expected)]
+          ? [
+              { ...found, members: standIn(found.members) },
+              { ...expected, members: standIn(expected.members) },
+            ]
           : [found, expected]
       },
     },

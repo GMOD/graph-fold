@@ -46,7 +46,7 @@ export function variationLabel({
   haplotypes,
   variation,
 }: Pick<FoldedTrackFields, 'haplotypes' | 'variation'>) {
-  const { walks, foldedAwayBp } = variation
+  const { foldedAwayBp } = variation
   const least = bpLabel(foldedAwayBp.min)
   const most = bpLabel(foldedAwayBp.max)
   const hidden =
@@ -57,5 +57,5 @@ export function variationLabel({
         : least === most
           ? `about ${most} folded away in each`
           : `${least} to ${most} folded away in each`
-  return `${plural(haplotypes, 'haplotype')} on ${plural(walks, 'distinct walk')}, ${hidden}`
+  return `${plural(haplotypes, 'haplotype')}, ${hidden}`
 }

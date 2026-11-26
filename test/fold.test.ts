@@ -519,10 +519,10 @@ describe('labels', () => {
       ],
     )
     expect(result.tracks.map(variationLabel)).toEqual([
-      '1 haplotype on 1 distinct walk, nothing folded away',
-      '7 haplotypes on 2 distinct walks, 0 bp to 10 bp folded away in each',
-      '4 haplotypes on 1 distinct walk, nothing folded away',
-      '1 haplotype on 1 distinct walk, nothing folded away',
+      '1 haplotype, nothing folded away',
+      '7 haplotypes, 0 bp to 10 bp folded away in each',
+      '4 haplotypes, nothing folded away',
+      '1 haplotype, nothing folded away',
     ])
     expect(bpLabel(999)).toBe('999 bp')
     expect(bpLabel(1000)).toBe('1 kb')
@@ -532,17 +532,15 @@ describe('labels', () => {
 })
 
 describe('what a tube stands for', () => {
-  test('the same walk given as two tracks counts as one distinct walk', () => {
+  test('walks that fold alike share a track, which names each of them', () => {
     const result = fold(
       { a: 100, b: 10, c: 100 },
       ['a b c', 'a c', 'a c', 'a b c'],
       { threshold: 50 },
     )
-    expect(
-      result.tracks.map(t => [t.freq, t.variation.walks, t.names.length]),
-    ).toEqual([
-      [1, 1, 1],
-      [3, 2, 3],
+    expect(result.tracks.map(t => [t.freq, t.names])).toEqual([
+      [1, ['ref']],
+      [3, ['hap1', 'hap2', 'hap3']],
     ])
   })
 
@@ -566,8 +564,8 @@ describe('what a tube stands for', () => {
       { threshold: 5000 },
     )
     expect(result.tracks.map(variationLabel)).toEqual([
-      '1 haplotype on 1 distinct walk, nothing folded away',
-      '2 haplotypes on 2 distinct walks, about 2.9 kb folded away in each',
+      '1 haplotype, nothing folded away',
+      '2 haplotypes, about 2.9 kb folded away in each',
     ])
   })
 
@@ -1184,7 +1182,7 @@ describe("inversions: 'box'", () => {
 })
 
 describe('what a track hides', () => {
-  test('a track counts the walks it stands for and the spread of what was folded away, by haplotype', () => {
+  test('a track states the spread of what was folded away, by haplotype', () => {
     const result = fold(
       { a: 100, b: 10, c: 100, x: 4, y: 30 },
       ['a b c', 'a c', 'a x b c', 'a b y c', 'a b c'],
@@ -1193,7 +1191,6 @@ describe('what a track hides', () => {
     )
     expect(sequences(result)).toEqual(['a~c', 'a~c'])
     expect(result.tracks[0]!.variation).toEqual({
-      walks: 1,
       foldedAwayBp: { min: 0, median: 0, max: 0 },
       insertedBp: { min: 0, median: 0, max: 0 },
       skippedBp: { min: 0, median: 0, max: 0 },
@@ -1201,7 +1198,6 @@ describe('what a track hides', () => {
     expect(result.tracks[1]).toMatchObject({
       freq: 11,
       variation: {
-        walks: 4,
         foldedAwayBp: { min: 0, median: 10, max: 30 },
         insertedBp: { min: 0, median: 0, max: 30 },
         skippedBp: { min: 0, median: 0, max: 10 },
@@ -1255,7 +1251,7 @@ describe('fragments of one haplotype', () => {
       ['deletion 5 kb, 1 of 3'],
     )
     expect(variationLabel(result.tracks[1]!)).toBe(
-      '1 haplotype on 2 distinct walks, 10 bp folded away in each',
+      '1 haplotype, 10 bp folded away in each',
     )
     expect(result.walks.map(w => w.freq)).toEqual([1, 1, 1, 1])
   })
@@ -1358,7 +1354,7 @@ describe('fragments of one haplotype', () => {
     ])
     expect(result.tracks[1]).toMatchObject({ freq: 5, haplotypes: 3 })
     expect(variationLabel(result.tracks[1]!)).toBe(
-      '3 haplotypes on 2 distinct walks, 0 bp to 30 bp folded away in each',
+      '3 haplotypes, 0 bp to 30 bp folded away in each',
     )
   })
 

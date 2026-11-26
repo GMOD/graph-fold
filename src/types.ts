@@ -78,7 +78,6 @@ export interface BpSpread {
 }
 
 export interface TrackVariation {
-  walks: number
   foldedAwayBp: BpSpread
   insertedBp: BpSpread
   skippedBp: BpSpread
